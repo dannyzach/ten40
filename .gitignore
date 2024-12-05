@@ -1,0 +1,41 @@
+# Python virtual environments
+.venv/
+__pycache__/
+*.pyc
+
+# Node.js dependencies
+node_modules/
+.next/
+trace/
+
+# Logs
+*.log
+
+# Environment files
+.env
+
+# MacOS system files
+.DS_Store
+
+# Database files
+*.sqlite3
+
+# IDE-specific files
+.vscode/
+.idea/
+
+# Temporary or build files
+build/
+cache/
+dist/
+coverage/
+*.tmp
+*.swp
+
+# React and Next.js build files
+.next/
+out/
+
+# Lock files
+yarn.lock
+package-lock.json
