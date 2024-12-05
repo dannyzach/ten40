@@ -1,0 +1,12 @@
+flask==3.0.0
+flask-cors==4.0.0
+sqlalchemy==2.0.23
+pillow==10.1.0
+python-dotenv==1.0.0
+requests==2.31.0
+ollama==0.1.4
+
+# Development dependencies
+pytest
+black
+flake8 
