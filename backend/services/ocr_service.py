@@ -13,64 +13,83 @@ class OCRService:
             logger.info(f"Starting OCR process for image: {image_path}")
             
             # Read image file
-            with open(image_path, 'rb') as f:
-                image_bytes = f.read()
-            
-            # Call Vision API with strict JSON prompt
-            response = ollama.chat(
-                model='llama3.2-vision',
-                messages=[{
-                    'role': 'user',
-                    'content': """Extract the following information from this receipt image and return ONLY a valid JSON object:
-                    {
-                        "store_name": "store name at the top",
-                        "date": "date in YYYY-MM-DD format",
-                        "items": [
-                            {"name": "item name", "quantity": number, "price": number}
-                        ],
-                        "subtotal": number,
-                        "tax": number,
-                        "total_amount": number
-                    }
-                    Do not include any additional text or explanation.""",
-                    'images': [image_bytes]
-                }],
-                stream=False
-            )
-            
-            # Parse response
-            content = response['message']['content']
-            logger.debug(f"Raw response: {content}")
-            
-            # Clean and parse JSON
             try:
-                # Find JSON object
-                start = content.find('{')
-                end = content.rfind('}') + 1
-                if start >= 0 and end > start:
-                    json_str = content[start:end]
-                    # Clean up any trailing commas and escaped characters
-                    json_str = json_str.replace('\\"', '"').replace('\\', '')
-                    json_str = json_str.replace(',}', '}').replace(',]', ']')
-                    data = json.loads(json_str)
-                    
-                    # Validate required fields
-                    required_fields = ['store_name', 'date', 'items', 'subtotal', 'tax', 'total_amount']
-                    if all(field in data for field in required_fields):
+                with open(image_path, 'rb') as f:
+                    image_bytes = f.read()
+                logger.info(f"Successfully read image file: {len(image_bytes)} bytes")
+            except Exception as e:
+                logger.error(f"Failed to read image file: {str(e)}")
+                raise
+            
+            logger.info("Calling Llama vision API...")
+            try:
+                # Call Vision API
+                response = ollama.chat(
+                    model='llama3.2-vision',
+                    messages=[{
+                        'role': 'user',
+                        'content': """Return ONLY a JSON object representing this receipt. No markdown, no explanations.
+                                     The response must start with '{' and end with '}'.
+                                     IMPORTANT: Use plain numbers without currency symbols (e.g., 11.95 not $11.95).
+                                     Example:
+                                     {
+                                         "order": {
+                                             "store": "Store Name",
+                                             "date": "Date",
+                                             "buyer": {
+                                                 "name": "Name",
+                                                 "email": "Email"
+                                             }
+                                         },
+                                         "items": [
+                                             {
+                                                 "type": "Item type",
+                                                 "quantity": 1,
+                                                 "price": 11.95
+                                             }
+                                         ],
+                                         "payment": {
+                                             "subtotal": 11.95,
+                                             "tax": 0.00,
+                                             "total": 11.95,
+                                             "method": "Payment method"
+                                         }
+                                     }""",
+                        'images': [image_bytes]
+                    }],
+                    stream=False
+                )
+                logger.info("Successfully received response from Llama")
+                
+                # Extract content from response
+                content = response['message']['content']
+                logger.info(f"Raw content: {content}")
+                
+                # Find and clean JSON
+                try:
+                    # Find JSON object
+                    start = content.find('{')
+                    end = content.rfind('}') + 1
+                    if start >= 0 and end > start:
+                        json_str = content[start:end]
+                        # Remove any non-JSON text
+                        json_str = json_str.strip()
+                        # Parse JSON
+                        data = json.loads(json_str)
+                        logger.info(f"Successfully parsed JSON: {data}")
                         return {'content': data}
                     else:
-                        missing = [f for f in required_fields if f not in data]
-                        logger.error(f"Missing required fields: {missing}")
-                        return {'content': f"Error: Missing required fields: {missing}"}
-                else:
-                    logger.error("No JSON object found in response")
-                    return {'content': "Error: No JSON object found in response"}
+                        logger.error("No JSON object found in response")
+                        return {'content': "Error: No JSON object found in response"}
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse JSON: {str(e)}")
+                    logger.error(f"Problematic JSON string: {json_str}")
+                    return {'content': f"Error parsing JSON: {str(e)}"}
                     
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON: {str(e)}")
-                logger.error(f"Problematic JSON: {json_str}")
-                return {'content': f"Error parsing JSON: {str(e)}"}
-                    
+            except Exception as e:
+                logger.error(f"Failed to call Llama API: {str(e)}")
+                raise
+            
         except Exception as e:
             logger.error(f"OCR process failed: {str(e)}")
             return {'content': f"OCR Error: {str(e)}"}

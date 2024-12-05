@@ -39,13 +39,17 @@ def upload_receipt():
         # Save file
         filename = f"{uuid.uuid4()}_{secure_filename(file.filename)}"
         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        logger.info(f"Saving file to: {filepath}")
         file.save(filepath)
 
         if not verify_image(filepath):
             return jsonify({'error': 'Failed to save image'}), 500
 
         # Process OCR
+        logger.info("Starting OCR processing")
         ocr_result = OCRService.extract_receipt_data(filepath)
+        logger.info(f"OCR result: {ocr_result}")
+        
         if not ocr_result or not isinstance(ocr_result, dict):
             return jsonify({'error': 'Invalid OCR result'}), 500
 
