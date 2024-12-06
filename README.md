@@ -37,6 +37,16 @@ A modern receipt management system that uses OCR to extract and organize receipt
 - SQLite (Database)
 - Llama 3.2-vision (OCR)
 
+### Frontend
+- Next.js 14+
+- React 18+
+- Material UI (MUI) 6+
+  - @mui/material
+  - @mui/icons-material
+  - @emotion/react
+  - @emotion/styled
+- TypeScript 5+
+
 ## Setup
 
 ### Prerequisites

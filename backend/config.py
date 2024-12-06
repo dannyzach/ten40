@@ -1,26 +1,22 @@
 import os
-from dotenv import load_dotenv
+from pathlib import Path
 
 class Config:
     """Application configuration"""
-    
     def __init__(self):
-        # Load environment variables
-        load_dotenv(verbose=True)
+        # Get user's home directory
+        home = str(Path.home())
         
-        # Verify API key
-        self.api_key = os.getenv('OPENAI_API_KEY')
-        if not self.api_key:
-            raise ValueError("OpenAI API key not found in environment variables")
-            
-        # Set up paths
-        self.receipts_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'Receipts')
-        self.upload_folder = os.path.join(self.receipts_dir, 'uploads')
-        self.db_path = os.path.join(self.receipts_dir, 'receipts.db')
+        # Create base directory for the application
+        self.base_dir = os.path.join(home, 'Documents', 'Receipts')
         
-        # Create directories
-        os.makedirs(self.upload_folder, exist_ok=True)
+        # Ensure directories exist
+        os.makedirs(self.base_dir, exist_ok=True)
+        os.makedirs(os.path.join(self.base_dir, 'uploads'), exist_ok=True)
+        
+        # Set paths
+        self.db_path = os.path.join(self.base_dir, 'receipts.db')
+        self.upload_folder = os.path.join(self.base_dir, 'uploads')
 
-# Create global config instance
 config = Config()
   

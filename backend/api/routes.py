@@ -6,6 +6,7 @@ from models.database import get_db, Receipt
 from services.ocr_service import OCRService
 import uuid
 from PIL import Image
+from datetime import datetime
 
 # Configure logging
 logger = logging.getLogger('api.routes')
@@ -36,10 +37,10 @@ def upload_receipt():
         if not file.filename:
             return jsonify({'error': 'No file selected'}), 400
 
-        # Save file
-        filename = f"{uuid.uuid4()}_{secure_filename(file.filename)}"
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        logger.info(f"Saving file to: {filepath}")
+        original_filename = secure_filename(file.filename)
+        saved_filename = f"{uuid.uuid4()}_{original_filename}"
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], saved_filename)
+        
         file.save(filepath)
 
         if not verify_image(filepath):
@@ -57,9 +58,13 @@ def upload_receipt():
         db = None
         try:
             with get_db() as db:
-                receipt = Receipt(image_path=filename, content=ocr_result.get('content'))
+                receipt = Receipt(
+                    image_path=saved_filename,
+                    original_filename=original_filename,
+                    content=ocr_result.get('content', {})
+                )
                 db.add(receipt)
-                db.flush()  # Get the ID without committing
+                db.flush()
                 receipt_dict = receipt.to_dict()
                 return jsonify(receipt_dict)
         except Exception as e:
@@ -79,7 +84,10 @@ def get_receipts():
             return jsonify([r.to_dict() for r in receipts])
     except Exception as e:
         logger.error(f"Failed to get receipts: {str(e)}")
-        return jsonify({'error': 'Database error'}), 500
+        return jsonify({
+            'error': 'Failed to fetch receipts',
+            'details': str(e)
+        }), 500
 
 @api_bp.route('/receipts/<int:receipt_id>', methods=['GET'])
 def get_receipt(receipt_id):
