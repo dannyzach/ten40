@@ -1,54 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt } from '../types';
-import JsonView from './JsonView';
-import ImageModal from './ImageModal';
-import { UploadReceipt } from './UploadReceipt';
 import { 
+    Container, 
+    Typography, 
+    Paper, 
     Table, 
     TableBody, 
     TableCell, 
     TableContainer, 
     TableHead, 
     TableRow,
-    Paper,
     Button,
-    Alert,
-    CircularProgress,
     Box,
-    Typography,
-    useTheme,
-    useMediaQuery
+    IconButton,
+    CircularProgress,
+    Tooltip,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    DialogContentText
 } from '@mui/material';
-import { Visibility, Delete } from '@mui/icons-material';
+import { Upload, Eye, FileJson, Trash2 } from "lucide-react";
+import { JsonViewer } from './JsonViewer';
+import { ImageViewer } from './ImageViewer';
+import { DebugPanel } from './DebugPanel';
+import { UploadArea } from './UploadArea';
 
-export const ReceiptList: React.FC = () => {
+interface Receipt {
+    id: number;
+    image_path: string;
+    original_filename: string;
+    uploaded_at: string;
+    content: any;
+}
+
+export const ReceiptList = () => {
     const [receipts, setReceipts] = useState<Receipt[]>([]);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [selectedJson, setSelectedJson] = useState<any | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [debugMessages, setDebugMessages] = useState<string[]>([]);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<number | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const addDebugMessage = (message: string) => {
+        setDebugMessages(prev => [...prev, `${new Date().toISOString()} - ${message}`]);
+        console.log(message);
+    };
 
     const fetchReceipts = async () => {
         try {
-            setIsLoading(true);
-            setError(null);
+            addDebugMessage("Fetching receipts...");
             const response = await fetch('/api/receipts');
-            if (!response.ok) {
-                throw new Error(`Failed to fetch receipts: ${response.statusText}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
-            if (!Array.isArray(data)) {
-                throw new Error('Invalid response format from server');
-            }
             setReceipts(data);
-        } catch (err) {
-            console.error('Fetch error:', err);
-            setError(err instanceof Error ? err.message : 'Failed to fetch receipts');
-        } finally {
-            setIsLoading(false);
+            addDebugMessage("Receipts fetched successfully");
+        } catch (error) {
+            addDebugMessage(`Error fetching receipts: ${error}`);
         }
     };
 
@@ -56,217 +66,241 @@ export const ReceiptList: React.FC = () => {
         fetchReceipts();
     }, []);
 
-    const toggleJsonExpand = (id: number) => {
-        const newExpanded = new Set(expandedRows);
-        if (newExpanded.has(id)) {
-            newExpanded.delete(id);
-        } else {
-            newExpanded.add(id);
+    const handleFileUpload = async (file: File) => {
+        // Check file type
+        if (!file.type.match(/^image\/(jpeg|png)$/)) {
+            setUploadError('Invalid file type. Please upload a JPEG or PNG image.');
+            return;
         }
-        setExpandedRows(newExpanded);
+
+        if (file.size > 15 * 1024 * 1024) {
+            setUploadError('File size too large. Maximum size is 15MB.');
+            return;
+        }
+
+        setIsUploading(true);
+        setUploadError(null);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            addDebugMessage("Starting file upload...");
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+
+            addDebugMessage("Upload successful, processing receipt...");
+            await fetchReceipts();
+            addDebugMessage("Receipt processed and saved");
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Upload failed';
+            setUploadError(message);
+            addDebugMessage(`Error: ${message}`);
+        } finally {
+            setIsUploading(false);
+        }
     };
 
-    const handleDelete = async (id: number) => {
+    const handleDeleteConfirm = async () => {
+        if (deleteConfirmOpen === null) return;
+
+        setIsDeleting(true);
         try {
-            setDeletingId(id);
-            const response = await fetch(`/api/receipts/${id}`, {
+            addDebugMessage(`Deleting receipt ${deleteConfirmOpen}...`);
+            const response = await fetch(`/api/receipts/${deleteConfirmOpen}`, {
                 method: 'DELETE'
             });
+
             if (!response.ok) {
-                throw new Error('Failed to delete receipt');
+                throw new Error(`Failed to delete receipt: ${response.statusText}`);
             }
+
+            addDebugMessage('Receipt deleted successfully');
             await fetchReceipts();
         } catch (error) {
-            console.error('Failed to delete receipt:', error);
+            addDebugMessage(`Error deleting receipt: ${error}`);
+            console.error('Delete error:', error);
         } finally {
-            setDeletingId(null);
-        }
-    };
-
-    const formatDate = (dateString: string) => {
-        try {
-            return new Date(dateString).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        } catch (error) {
-            console.error('Date formatting error:', error);
-            return 'Invalid Date';
+            setIsDeleting(false);
+            setDeleteConfirmOpen(null);
         }
     };
 
     return (
-        <Box sx={{ 
-            maxWidth: '100%',
-            overflow: 'hidden',
-            p: { xs: 1, sm: 2, md: 3 }
-        }}>
+        <Container 
+            maxWidth={false} 
+            disableGutters 
+            sx={{ 
+                px: { xs: 1, sm: 2, md: 4 },
+                py: { xs: 2, sm: 4 },
+                maxWidth: '100vw',
+                overflowX: 'hidden'
+            }}
+        >
             <Typography 
                 variant="h4" 
                 component="h1" 
+                gutterBottom
                 sx={{ 
-                    mb: { xs: 2, sm: 3 },
-                    fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' }
+                    fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
+                    mb: { xs: 2, sm: 4 }
                 }}
             >
                 Receipt Organizer
             </Typography>
 
-            <UploadReceipt onUploadComplete={fetchReceipts} />
-            
-            {error && (
-                <Alert 
-                    severity="error"
-                    sx={{ mb: { xs: 2, sm: 3 } }}
-                >
-                    {error}
-                </Alert>
-            )}
+            <UploadArea 
+                onUpload={handleFileUpload} 
+                isUploading={isUploading}
+                error={uploadError}
+            />
 
-            {isLoading ? (
-                <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    minHeight: '200px',
-                    flexDirection: 'column',
-                    gap: 2
-                }}>
-                    <CircularProgress />
-                    <Typography>Loading receipts...</Typography>
-                </Box>
-            ) : (
-                <TableContainer 
-                    component={Paper}
-                    sx={{ 
-                        overflowX: 'auto',
-                        '& .MuiTable-root': {
-                            minWidth: { xs: '100%', sm: '650px' }
-                        }
-                    }}
-                >
-                    <Table>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell 
-                                    sx={{ 
-                                        fontWeight: 600,
-                                        fontSize: '1.1rem',
-                                        backgroundColor: 'primary.main',
-                                        color: 'white'
-                                    }}
-                                >
-                                    Receipt Name
+            <Box sx={{ 
+                width: '100%', 
+                overflowX: 'auto',
+                mt: { xs: 2, sm: 4 }
+            }}>
+                <Table size="small">
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Name</TableCell>
+                            <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                                Date
+                            </TableCell>
+                            <TableCell align="right" sx={{ pr: { xs: 1, sm: 2 } }}>
+                                Actions
+                            </TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {receipts.map((receipt) => (
+                            <TableRow 
+                                key={receipt.id} 
+                                hover
+                                onClick={() => setSelectedImage(receipt.image_path)}
+                                sx={{ 
+                                    cursor: 'pointer',
+                                    '&:hover': {
+                                        bgcolor: 'action.hover',
+                                    }
+                                }}
+                            >
+                                <TableCell sx={{ 
+                                    maxWidth: { xs: '120px', sm: '200px', md: '300px' },
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                }}>
+                                    {receipt.original_filename}
                                 </TableCell>
-                                <TableCell 
-                                    sx={{ 
-                                        fontWeight: 600,
-                                        fontSize: '1.1rem',
-                                        backgroundColor: 'primary.main',
-                                        color: 'white'
-                                    }}
-                                >
-                                    Date Uploaded
+                                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                                    {new Date(receipt.uploaded_at).toLocaleDateString()}
                                 </TableCell>
-                                <TableCell 
-                                    sx={{ 
-                                        fontWeight: 600,
-                                        fontSize: '1.1rem',
-                                        backgroundColor: 'primary.main',
-                                        color: 'white'
-                                    }}
-                                >
-                                    Receipt Data
-                                </TableCell>
-                                <TableCell 
-                                    sx={{ 
-                                        fontWeight: 600,
-                                        fontSize: '1.1rem',
-                                        backgroundColor: 'primary.main',
-                                        color: 'white'
-                                    }}
-                                >
-                                    Actions
+                                <TableCell align="right" sx={{ 
+                                    p: { xs: 0.5, sm: 1 },
+                                    minWidth: { xs: '120px', sm: 'auto' }
+                                }}>
+                                    <Box 
+                                        sx={{ 
+                                            display: 'flex', 
+                                            gap: { xs: 0.5, sm: 1 },
+                                            justifyContent: 'flex-end',
+                                            '& .MuiButton-root': {
+                                                minWidth: { xs: '32px', sm: 'auto' },
+                                                px: { xs: 1, sm: 2 }
+                                            }
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Tooltip title="View">
+                                            <Button
+                                                variant="outlined"
+                                                size="small"
+                                                onClick={() => setSelectedImage(receipt.image_path)}
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                                <span className="hidden sm:inline ml-2">View</span>
+                                            </Button>
+                                        </Tooltip>
+                                        <Tooltip title="Data">
+                                            <Button
+                                                variant="outlined"
+                                                size="small"
+                                                onClick={() => setSelectedJson(receipt.content)}
+                                            >
+                                                <FileJson className="w-4 h-4" />
+                                                <span className="hidden sm:inline ml-2">Data</span>
+                                            </Button>
+                                        </Tooltip>
+                                        <Tooltip title="Delete">
+                                            <Button
+                                                variant="outlined"
+                                                color="error"
+                                                size="small"
+                                                onClick={() => setDeleteConfirmOpen(receipt.id)}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                <span className="hidden sm:inline ml-2">Delete</span>
+                                            </Button>
+                                        </Tooltip>
+                                    </Box>
                                 </TableCell>
                             </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {receipts.map(receipt => (
-                                <TableRow 
-                                    key={receipt.id}
-                                    sx={{
-                                        '&:hover': {
-                                            backgroundColor: 'action.hover',
-                                            '& .MuiButton-root': {
-                                                opacity: 1
-                                            }
-                                        }
-                                    }}
-                                >
-                                    <TableCell>
-                                        {receipt.original_filename || 'Unnamed Receipt'}
-                                    </TableCell>
-                                    <TableCell>
-                                        {formatDate(receipt.uploaded_at)}
-                                    </TableCell>
-                                    <TableCell 
-                                        onClick={() => toggleJsonExpand(receipt.id)}
-                                        sx={{ 
-                                            cursor: 'pointer',
-                                            '&:hover': { bgcolor: 'action.hover' }
-                                        }}
-                                    >
-                                        <JsonView 
-                                            data={receipt.content} 
-                                            isExpanded={expandedRows.has(receipt.id)}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <Box sx={{ 
-                                            display: 'flex', 
-                                            gap: 1,
-                                            flexDirection: { xs: 'column', sm: 'row' }
-                                        }}>
-                                            <Button
-                                                startIcon={<Visibility />}
-                                                variant="contained"
-                                                color="primary"
-                                                onClick={() => setSelectedImage(receipt.image_path)}
-                                                fullWidth={isMobile}
-                                                size={isMobile ? "small" : "medium"}
-                                            >
-                                                View
-                                            </Button>
-                                            <Button
-                                                startIcon={<Delete />}
-                                                variant="contained"
-                                                color="error"
-                                                onClick={() => handleDelete(receipt.id)}
-                                                disabled={deletingId === receipt.id}
-                                                fullWidth={isMobile}
-                                                size={isMobile ? "small" : "medium"}
-                                            >
-                                                {deletingId === receipt.id ? 'Deleting...' : 'Delete'}
-                                            </Button>
-                                        </Box>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            )}
+                        ))}
+                    </TableBody>
+                </Table>
+            </Box>
+
+            <DebugPanel messages={debugMessages} />
 
             {selectedImage && (
-                <ImageModal 
+                <ImageViewer
                     imagePath={selectedImage}
                     onClose={() => setSelectedImage(null)}
                 />
             )}
-        </Box>
+            {selectedJson && (
+                <JsonViewer
+                    data={selectedJson}
+                    onClose={() => setSelectedJson(null)}
+                />
+            )}
+
+            <Dialog
+                open={deleteConfirmOpen !== null}
+                onClose={() => setDeleteConfirmOpen(null)}
+            >
+                <DialogTitle>
+                    Confirm Delete
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to delete this receipt? This action cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button
+                        onClick={() => setDeleteConfirmOpen(null)}
+                        color="inherit"
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleDeleteConfirm}
+                        color="error"
+                        variant="contained"
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </Container>
     );
 };
 

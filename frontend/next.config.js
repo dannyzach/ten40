@@ -13,13 +13,12 @@ const nextConfig = {
     experimental: {
         proxyTimeout: 120000
     },
-    webpack: (config, { isServer }) => {
-        // Resolve punycode deprecation warning
+    webpack: (config) => {
         config.resolve.fallback = {
             ...config.resolve.fallback,
             punycode: false,
+            util: false
         };
-
         return config;
     }
 };

@@ -1,17 +1,7 @@
 import React, { useState } from 'react';
-import { 
-    Button, 
-    Box, 
-    LinearProgress, 
-    Typography, 
-    Alert,
-    Paper,
-    useTheme,
-    useMediaQuery,
-    CircularProgress
-} from '@mui/material';
-import { Upload, Cancel } from '@mui/icons-material';
-import { useDropzone } from 'react-dropzone';
+import { Button } from "@/components/ui/button";
+import Dropzone from 'react-dropzone';
+import { Upload, X } from "lucide-react";
 
 interface UploadReceiptProps {
     onUploadComplete: () => void;
@@ -20,39 +10,7 @@ interface UploadReceiptProps {
 export const UploadReceipt: React.FC<UploadReceiptProps> = ({ onUploadComplete }) => {
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const [isDragging, setIsDragging] = useState(false);
     const [abortController, setAbortController] = useState<AbortController | null>(null);
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(true);
-    };
-
-    const handleDragLeave = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-    };
-
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-        
-        const file = e.dataTransfer.files[0];
-        if (file) {
-            handleFileUpload(file);
-        }
-    };
-
-    const handleCancel = () => {
-        if (abortController) {
-            abortController.abort();
-            setIsUploading(false);
-            setError('Upload cancelled');
-            setAbortController(null);
-        }
-    };
 
     const handleFileUpload = async (file: File) => {
         if (file.size > 15 * 1024 * 1024) {
@@ -83,7 +41,6 @@ export const UploadReceipt: React.FC<UploadReceiptProps> = ({ onUploadComplete }
             onUploadComplete();
         } catch (err: unknown) {
             if (err instanceof Error && err.name === 'AbortError') {
-                // Upload was cancelled, error is already set
                 return;
             }
             if (err instanceof Error && err.name === 'TimeoutError') {
@@ -99,174 +56,50 @@ export const UploadReceipt: React.FC<UploadReceiptProps> = ({ onUploadComplete }
         }
     };
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        accept: {
-            'image/*': ['.jpeg', '.jpg', '.png']
-        },
-        multiple: false,
-        onDrop: async (acceptedFiles: File[]) => {
-            if (acceptedFiles.length > 0) {
-                setIsUploading(true);
-                try {
-                    await handleFileUpload(acceptedFiles[0]);
-                } finally {
-                    setIsUploading(false);
-                }
-            }
-        }
-    });
-
     return (
-        <Box
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            sx={{
-                mb: 4,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                transition: 'all 0.3s',
-                ...(isDragging && {
-                    backgroundColor: 'action.hover',
-                    '& .upload-zone': {
-                        borderColor: 'primary.main',
-                    }
-                })
-            }}
-        >
-            <Box
-                className="upload-zone"
-                sx={{
-                    position: 'relative',
-                    p: 3,
-                    width: '100%',
-                    maxWidth: 500,
-                    textAlign: 'center',
-                    borderRadius: 2,
-                    cursor: isUploading ? 'wait' : 'pointer',
-                    border: '2px dashed',
-                    borderColor: isDragging ? 'primary.main' : 'grey.300',
-                    bgcolor: isDragging ? 'action.hover' : 'transparent',
-                    transform: isDragging ? 'scale(1.02)' : 'scale(1)',
-                    transition: theme.transitions.create(
-                        ['border-color', 'background-color', 'transform'],
-                        { duration: theme.transitions.duration.shorter }
-                    ),
-                    '&:hover': {
-                        borderColor: 'primary.light',
-                        bgcolor: 'action.hover'
-                    },
-                    '& .drag-icon': {
-                        transform: isDragging ? 'translateY(-5px)' : 'translateY(0)',
-                        transition: theme.transitions.create('transform')
+        <div className="mb-8 p-6 border border-dashed rounded-lg bg-white shadow-sm">
+            <Dropzone
+                accept="image/jpeg,image/png"
+                multiple={false}
+                onDrop={async (acceptedFiles) => {
+                    if (acceptedFiles.length > 0) {
+                        await handleFileUpload(acceptedFiles[0]);
                     }
                 }}
             >
-                {isUploading && (
-                    <Box
-                        sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                            borderRadius: 2,
-                            zIndex: 1,
-                            animation: 'fadeIn 0.3s ease-out',
-                            padding: 3
-                        }}
+                {({getRootProps, getInputProps}) => (
+                    <div 
+                        {...getRootProps()} 
+                        className="flex flex-col items-center justify-center gap-4"
                     >
-                        <LinearProgress 
-                            sx={{ 
-                                width: '80%',
-                                mb: 3,
-                                height: 8,
-                                borderRadius: 4
-                            }}
-                        />
-                        <Typography
-                            variant="h6"
-                            sx={{ 
-                                mb: 1,
-                                animation: 'pulse 2s infinite'
-                            }}
-                        >
-                            Processing Receipt
-                        </Typography>
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mb: 3 }}
-                        >
-                            This may take a while...
-                        </Typography>
-                        <Button
-                            variant="outlined"
-                            color="error"
-                            onClick={handleCancel}
-                            startIcon={<Cancel />}
-                            size="small"
-                            sx={{
-                                opacity: 0.8,
-                                '&:hover': {
-                                    opacity: 1
-                                }
-                            }}
-                        >
-                            Cancel Upload
-                        </Button>
-                    </Box>
+                        <input {...getInputProps()} />
+                        <div className="rounded-full bg-muted p-4">
+                            <Upload className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <button className="inline-flex items-center justify-center rounded-md text-xs font-medium h-10 px-4 bg-primary text-primary-foreground hover:bg-primary/90">
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload Receipt
+                        </button>
+                        <p className="text-sm text-muted-foreground">
+                            or drag and drop a receipt image here
+                        </p>
+                        
+                        {error && (
+                            <div className="text-destructive text-sm flex items-center gap-2">
+                                <X className="w-4 h-4" />
+                                {error}
+                            </div>
+                        )}
+                        
+                        {isUploading && (
+                            <div className="text-sm text-muted-foreground">
+                                Uploading...
+                            </div>
+                        )}
+                    </div>
                 )}
-
-                <Box className="drag-icon" sx={{ mb: 2 }}>
-                    <Upload sx={{ fontSize: 40, color: isDragging ? 'primary.main' : 'action.active' }} />
-                </Box>
-                <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
-                    style={{ display: 'none' }}
-                    id="upload-input"
-                />
-                <label htmlFor="upload-input">
-                    <Button
-                        variant="contained"
-                        component="span"
-                        disabled={isUploading}
-                        startIcon={<Upload />}
-                        sx={{
-                            py: 1.5,
-                            px: 4,
-                            fontSize: '1.1rem'
-                        }}
-                    >
-                        {isUploading ? 'Processing...' : 'Upload Receipt'}
-                    </Button>
-                </label>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    or drag and drop a receipt image here
-                </Typography>
-            </Box>
-
-            {error && (
-                <Alert 
-                    severity="error" 
-                    sx={{ 
-                        mt: { xs: 1, sm: 2 },
-                        width: '100%',
-                        animation: 'slideIn 0.4s ease-out'
-                    }}
-                >
-                    {error}
-                </Alert>
-            )}
-        </Box>
+            </Dropzone>
+        </div>
     );
 };
 

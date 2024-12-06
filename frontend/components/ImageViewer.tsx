@@ -4,10 +4,10 @@ import {
     DialogTitle, 
     DialogContent, 
     IconButton,
-    Box,
-    Typography
+    Box
 } from '@mui/material';
 import { X } from "lucide-react";
+import { useMediaQuery } from '@mui/material';
 
 interface ImageViewerProps {
     imagePath: string;
@@ -21,37 +21,16 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ imagePath, onClose }) 
             onClose={onClose}
             maxWidth="lg"
             fullWidth
+            fullScreen={useMediaQuery((theme) => theme.breakpoints.down('sm'))}
         >
-            <DialogTitle sx={{ 
-                m: 0, 
-                p: 2, 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center' 
-            }}>
-                <Typography variant="h6">
-                    Receipt Image
-                </Typography>
-                <IconButton 
-                    onClick={onClose}
-                    size="small"
-                    sx={{ 
-                        borderRadius: '50%',
-                        p: 1,
-                        '&:hover': {
-                            bgcolor: 'action.hover'
-                        }
-                    }}
-                >
+            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                Receipt Image
+                <IconButton onClick={onClose} size="small">
                     <X size={18} />
                 </IconButton>
             </DialogTitle>
             <DialogContent sx={{ bgcolor: 'black', p: 2 }}>
-                <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'center' 
-                }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                     <img 
                         src={`/api/images/${imagePath}`}
                         alt="Receipt"
@@ -65,6 +44,4 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ imagePath, onClose }) 
             </DialogContent>
         </Dialog>
     );
-};
-
-export default ImageViewer; 
+}; 
