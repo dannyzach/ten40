@@ -20,6 +20,10 @@ const nextConfig = {
             util: false
         };
         return config;
+    },
+    onDemandEntries: {
+        maxInactiveAge: 25 * 1000,
+        pagesBufferLength: 2
     }
 };
 

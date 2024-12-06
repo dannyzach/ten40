@@ -6,7 +6,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 
 const theme = createTheme({
     typography: {
-        fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+        fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         caption: {
             fontSize: '0.75rem',
             fontWeight: 600,

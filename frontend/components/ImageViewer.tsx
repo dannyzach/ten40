@@ -7,7 +7,7 @@ import {
     Box
 } from '@mui/material';
 import { X } from "lucide-react";
-import { useMediaQuery } from '@mui/material';
+import { useMediaQuery, Theme } from '@mui/material';
 
 interface ImageViewerProps {
     imagePath: string;
@@ -21,7 +21,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ imagePath, onClose }) 
             onClose={onClose}
             maxWidth="lg"
             fullWidth
-            fullScreen={useMediaQuery((theme) => theme.breakpoints.down('sm'))}
+            fullScreen={useMediaQuery((theme: Theme) => theme.breakpoints.down('sm'))}
         >
             <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 Receipt Image

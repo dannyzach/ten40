@@ -21,9 +21,9 @@ import {
     DialogContentText
 } from '@mui/material';
 import { Upload, Eye, FileJson, Trash2 } from "lucide-react";
-import { JsonViewer } from './JsonViewer';
-import { ImageViewer } from './ImageViewer';
-import { DebugPanel } from './DebugPanel';
+import { JsonViewer } from '@/components/JsonViewer';
+import { ImageViewer } from '@/components/ImageViewer';
+import { DebugPanel } from '@/components/DebugPanel';
 import { UploadArea } from './UploadArea';
 
 interface Receipt {
