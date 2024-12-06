@@ -10,24 +10,6 @@ A modern receipt management system that uses OCR to extract and organize receipt
 - View and update receipt details
 - Delete receipts and associated images
 
-## Project Structure
-
-```slim-receipt-organizer/
-├── backend/                 # Backend server
-│   ├── api/                # API endpoints
-│   │   └── routes.py       # API route handlers
-│   ├── models/             # Database models
-│   │   └── database.py     # SQLAlchemy models
-│   ├── services/           # Business logic
-│   │   └── ocr_service.py  # OCR processing
-│   ├── tests/              # Test suite
-│   │   ├── base.py         # Base test utilities
-│   │   └── test_api.py     # API tests
-│   ├── config.py           # Configuration
-│   ├── app.py             # Flask application
-│   └── run_tests.py       # Test runner
-```
-
 ## Technology Stack
 
 ### Backend
@@ -46,12 +28,14 @@ A modern receipt management system that uses OCR to extract and organize receipt
   - @emotion/react
   - @emotion/styled
 - TypeScript 5+
+- React Dropzone
 
 ## Setup
 
 ### Prerequisites
 - Python 3.9 or higher
-- pip (Python package manager)
+- Node.js 18 or higher
+- npm or yarn
 - Virtual environment (recommended)
 
 ### System Dependencies
@@ -74,33 +58,6 @@ sudo systemctl start ollama
 ollama pull llama3.2-vision
 ```
 
-### Python Dependencies
-
-The following Python packages are required:
-```
-flask==3.0.0
-flask-cors==4.0.0
-sqlalchemy==2.0.23
-pillow==10.1.0
-python-dotenv==1.0.0
-requests==2.31.0
-ollama==0.1.4
-```
-
-Install them using:
-```bash
-pip install -r requirements.txt
-```
-
-### Development Dependencies
-
-For development and testing:
-```bash
-pip install pytest
-pip install black  # Code formatting
-pip install flake8  # Linting
-```
-
 ### Backend Setup
 
 1. Create and activate virtual environment:
@@ -110,15 +67,22 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-2. Install dependencies:
+2. Install Python dependencies:
 ```bash
-pip install -r requirements.txt
+pip install flask==3.0.0
+pip install flask-cors==4.0.0
+pip install sqlalchemy==2.0.23
+pip install pillow==10.1.0
+pip install python-dotenv==1.0.0
+pip install requests==2.31.0
+pip install ollama==0.1.4
+pip install werkzeug==3.0.1
 ```
 
-3. Set up environment variables:
+3. Initialize the database:
 ```bash
-# Create .env file with your OpenAI API key
-OPENAI_API_KEY=your_api_key_here
+cd backend
+python models/create_db.py
 ```
 
 4. Run the server:
@@ -128,7 +92,50 @@ python app.py
 
 The server will start at `http://localhost:3456`
 
-## API Documentation
+### Frontend Setup
+
+1. Install Node.js dependencies:
+```bash
+cd frontend
+npm install
+```
+
+2. Install additional frontend dependencies:
+```bash
+npm install @mui/material @emotion/react @emotion/styled
+npm install @mui/icons-material
+npm install react-dropzone @types/react-dropzone
+```
+
+3. Run the development server:
+```bash
+npm run dev
+```
+
+The frontend will start at `http://localhost:3000`
+
+## File Storage
+
+Receipt images are stored in:
+```
+~/Documents/Receipts/uploads/
+```
+
+Database file location:
+```
+~/Documents/Receipts/receipts.db
+```
+
+## Development
+
+### Running Tests
+
+From the backend directory:
+```bash
+python run_tests.py
+```
+
+### API Documentation
 
 ### Upload Receipt
 ```http
@@ -217,33 +224,6 @@ Response:
 {
     "message": "Receipt deleted successfully"
 }
-```
-
-## Development
-
-### Running Tests
-
-From the backend directory:
-```bash
-python run_tests.py
-```
-
-The test suite includes:
-- API endpoint tests
-- Receipt upload and processing
-- Data validation
-- Error handling
-
-### File Storage
-
-Receipt images are stored in:
-```
-~/Documents/Receipts/uploads/
-```
-
-Database file location:
-```
-~/Documents/Receipts/receipts.db
 ```
 
 ## Error Handling

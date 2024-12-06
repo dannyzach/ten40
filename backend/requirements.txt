@@ -5,8 +5,9 @@ pillow==10.1.0
 python-dotenv==1.0.0
 requests==2.31.0
 ollama==0.1.4
+werkzeug==3.0.1
 
 # Development dependencies
-pytest
-black
-flake8 
+pytest==7.4.3
+black==23.11.0
+flake8==6.1.0 
