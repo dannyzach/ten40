@@ -1,4 +1,13 @@
 import React from 'react';
+import { 
+    Dialog, 
+    DialogContent, 
+    IconButton, 
+    AppBar, 
+    Toolbar, 
+    Typography 
+} from '@mui/material';
+import { Close } from '@mui/icons-material';
 
 interface ImageModalProps {
     imagePath: string;
@@ -7,16 +16,43 @@ interface ImageModalProps {
 
 const ImageModal: React.FC<ImageModalProps> = ({ imagePath, onClose }) => {
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <button className="close-button" onClick={onClose}>×</button>
+        <Dialog
+            fullScreen
+            open={true}
+            onClose={onClose}
+        >
+            <AppBar sx={{ position: 'relative' }}>
+                <Toolbar>
+                    <IconButton
+                        edge="start"
+                        color="inherit"
+                        onClick={onClose}
+                        aria-label="close"
+                    >
+                        <Close />
+                    </IconButton>
+                    <Typography sx={{ ml: 2, flex: 1 }} variant="h6">
+                        Receipt Image
+                    </Typography>
+                </Toolbar>
+            </AppBar>
+            <DialogContent sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                bgcolor: 'black'
+            }}>
                 <img 
                     src={`/api/images/${imagePath}`}
                     alt="Receipt"
-                    className="modal-image"
+                    style={{
+                        maxWidth: '100%',
+                        maxHeight: '90vh',
+                        objectFit: 'contain'
+                    }}
                 />
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 };
 

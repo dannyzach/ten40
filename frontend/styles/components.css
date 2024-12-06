@@ -315,4 +315,13 @@ h1 {
 
 .delete-btn:hover {
     opacity: 1;
+}
+
+.upload-box {
+    transition: all 0.2s ease-in-out;
+}
+
+.upload-box:hover {
+    border-color: #666;
+    background-color: rgba(0, 0, 0, 0.02);
 } 

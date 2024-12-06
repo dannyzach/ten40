@@ -12,6 +12,15 @@ const nextConfig = {
     },
     experimental: {
         proxyTimeout: 120000
+    },
+    webpack: (config, { isServer }) => {
+        // Resolve punycode deprecation warning
+        config.resolve.fallback = {
+            ...config.resolve.fallback,
+            punycode: false,
+        };
+
+        return config;
     }
 };
 
