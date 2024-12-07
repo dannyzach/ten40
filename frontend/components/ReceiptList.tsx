@@ -67,14 +67,20 @@ export const ReceiptList = () => {
     }, []);
 
     const handleFileUpload = async (file: File) => {
+        console.log('Starting file upload for:', file.name);
+        
         // Check file type
         if (!file.type.match(/^image\/(jpeg|png)$/)) {
-            setUploadError('Invalid file type. Please upload a JPEG or PNG image.');
+            const error = 'Invalid file type. Please upload a JPEG or PNG image.';
+            console.error(error);
+            setUploadError(error);
             return;
         }
 
         if (file.size > 15 * 1024 * 1024) {
-            setUploadError('File size too large. Maximum size is 15MB.');
+            const error = 'File size too large. Maximum size is 15MB.';
+            console.error(error);
+            setUploadError(error);
             return;
         }
 
@@ -85,20 +91,29 @@ export const ReceiptList = () => {
 
         try {
             addDebugMessage("Starting file upload...");
+            console.log('Sending request to /api/upload');
+            
             const response = await fetch('/api/upload', {
                 method: 'POST',
                 body: formData,
             });
 
+            console.log('Upload response status:', response.status);
+            
             if (!response.ok) {
-                throw new Error(`Upload failed: ${response.statusText}`);
+                const errorText = await response.text();
+                throw new Error(`Upload failed: ${response.statusText}. ${errorText}`);
             }
+
+            const data = await response.json();
+            console.log('Upload response:', data);
 
             addDebugMessage("Upload successful, processing receipt...");
             await fetchReceipts();
             addDebugMessage("Receipt processed and saved");
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Upload failed';
+            console.error('Upload error:', error);
             setUploadError(message);
             addDebugMessage(`Error: ${message}`);
         } finally {
@@ -148,7 +163,8 @@ export const ReceiptList = () => {
                 gutterBottom
                 sx={{ 
                     fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
-                    mb: { xs: 2, sm: 4 }
+                    mb: { xs: 2, sm: 4 },
+                    textTransform: 'uppercase'
                 }}
             >
                 Receipt Organizer
@@ -168,11 +184,11 @@ export const ReceiptList = () => {
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell>Name</TableCell>
+                            <TableCell>Receipt File Name</TableCell>
                             <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                Date
+                                Upload Date
                             </TableCell>
-                            <TableCell align="right" sx={{ pr: { xs: 1, sm: 2 } }}>
+                            <TableCell align="left">
                                 Actions
                             </TableCell>
                         </TableRow>
@@ -201,15 +217,12 @@ export const ReceiptList = () => {
                                 <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                                     {new Date(receipt.uploaded_at).toLocaleDateString()}
                                 </TableCell>
-                                <TableCell align="right" sx={{ 
-                                    p: { xs: 0.5, sm: 1 },
-                                    minWidth: { xs: '120px', sm: 'auto' }
-                                }}>
+                                <TableCell align="left">
                                     <Box 
                                         sx={{ 
                                             display: 'flex', 
                                             gap: { xs: 0.5, sm: 1 },
-                                            justifyContent: 'flex-end',
+                                            justifyContent: 'flex-start',
                                             '& .MuiButton-root': {
                                                 minWidth: { xs: '32px', sm: 'auto' },
                                                 px: { xs: 1, sm: 2 }

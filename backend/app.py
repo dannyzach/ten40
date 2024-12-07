@@ -3,6 +3,7 @@ from flask_cors import CORS
 from api.routes import api_bp
 from config import config
 import logging
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Configure logging
 logging.basicConfig(
@@ -15,13 +16,17 @@ app = Flask(__name__)
 # Configure CORS with timeout
 CORS(app, resources={
     r"/api/*": {
-        "origins": "*",
-        "max_age": 120  # 2 minutes
+        "origins": ["http://localhost:3000"],
+        "methods": ["GET", "POST", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
     }
 })
 
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
 # Configure upload folder
 app.config['UPLOAD_FOLDER'] = config.upload_folder
+app.config['UPLOAD_TIMEOUT'] = 120
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['PROPAGATE_EXCEPTIONS'] = True  # Enable full error reporting
 

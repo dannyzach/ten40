@@ -26,8 +26,13 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onUpload, isUploading, e
         multiple: false,
         disabled: isUploading,
         onDrop: async (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
-            if (acceptedFiles?.[0]) {
-                await onUpload(acceptedFiles[0]);
+            try {
+                if (acceptedFiles?.[0]) {
+                    console.log('File selected:', acceptedFiles[0].name);
+                    await onUpload(acceptedFiles[0]);
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
             }
         }
     };
@@ -85,7 +90,7 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onUpload, isUploading, e
 
             <Button
                 variant="contained"
-                component="label"
+                component="span"
                 startIcon={<Upload size={16} />}
                 disabled={isUploading}
                 sx={{
@@ -93,18 +98,8 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onUpload, isUploading, e
                     minHeight: { xs: 40, sm: 36 },
                     fontSize: { xs: '0.8125rem', sm: '0.875rem' }
                 }}
-                onClick={e => e.stopPropagation()} // Prevent dropzone trigger
             >
                 {isUploading ? 'Uploading...' : 'Upload Receipt'}
-                <input
-                    type="file"
-                    hidden
-                    accept="image/jpeg,image/png"
-                    onChange={e => {
-                        const file = e.target.files?.[0];
-                        if (file) onUpload(file);
-                    }}
-                />
             </Button>
 
             <Typography 

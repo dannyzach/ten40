@@ -24,38 +24,39 @@ def verify_image(filepath):
         return False
 
 @api_bp.route('/upload', methods=['POST'])
-def upload_receipt():
-    """Handle receipt upload and OCR processing"""
+def upload_file():
+    logger.info("Received upload request")
     try:
-        logger.info("Processing receipt upload")
-        
-        # Validate request
         if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
-            
+            logger.error("No file part in request")
+            return jsonify({'error': 'No file part'}), 400
+        
         file = request.files['file']
-        if not file.filename:
-            return jsonify({'error': 'No file selected'}), 400
-
+        if file.filename == '':
+            logger.error("No selected file")
+            return jsonify({'error': 'No selected file'}), 400
+        
+        logger.info(f"Processing file: {file.filename}")
+        
+        # Generate unique filename
         original_filename = secure_filename(file.filename)
         saved_filename = f"{uuid.uuid4()}_{original_filename}"
         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], saved_filename)
         
+        # Save file
         file.save(filepath)
-
+        logger.info(f"File saved to: {filepath}")
+        
+        # Verify image
         if not verify_image(filepath):
+            logger.error("Failed to verify saved image")
             return jsonify({'error': 'Failed to save image'}), 500
-
-        # Process OCR
-        logger.info("Starting OCR processing")
+        
+        # Process with OCR
         ocr_result = OCRService.extract_receipt_data(filepath)
         logger.info(f"OCR result: {ocr_result}")
         
-        if not ocr_result or not isinstance(ocr_result, dict):
-            return jsonify({'error': 'Invalid OCR result'}), 500
-
         # Save to database
-        db = None
         try:
             with get_db() as db:
                 receipt = Receipt(
@@ -64,15 +65,17 @@ def upload_receipt():
                     content=ocr_result.get('content', {})
                 )
                 db.add(receipt)
-                db.flush()
-                receipt_dict = receipt.to_dict()
-                return jsonify(receipt_dict)
+                db.commit()
+                
+                # Return the created receipt
+                return jsonify(receipt.to_dict())
+                
         except Exception as e:
             logger.error(f"Database error: {str(e)}")
-            return jsonify({'error': 'Database error'}), 500
-
+            return jsonify({'error': 'Failed to save receipt to database'}), 500
+        
     except Exception as e:
-        logger.error(f"Upload failed: {str(e)}")
+        logger.error(f"Upload error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/receipts', methods=['GET'])
@@ -149,3 +152,28 @@ def delete_receipt(receipt_id):
 def get_image(filename):
     """Serve receipt images"""
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+
+@api_bp.route('/debug/receipts', methods=['GET'])
+def debug_receipts():
+    """Debug endpoint to check database content"""
+    try:
+        with get_db() as db:
+            receipts = db.query(Receipt).all()
+            return jsonify({
+                'count': len(receipts),
+                'receipts': [
+                    {
+                        'id': r.id,
+                        'image_path': r.image_path,
+                        'original_filename': r.original_filename,
+                        'uploaded_at': r.uploaded_at.isoformat() if r.uploaded_at else None,
+                        'content_keys': list(r.content.keys()) if r.content else None
+                    } 
+                    for r in receipts
+                ]
+            })
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'db_path': config.db_path
+        }), 500

@@ -11,7 +11,8 @@ const nextConfig = {
         ];
     },
     experimental: {
-        proxyTimeout: 120000
+        proxyTimeout: 300000, // 5 minutes
+        largePageDataBytes: 128 * 100000
     },
     webpack: (config) => {
         config.resolve.fallback = {
@@ -19,11 +20,14 @@ const nextConfig = {
             punycode: false,
             util: false
         };
+        config.watchOptions = {
+            poll: 1000,
+            aggregateTimeout: 300
+        };
         return config;
     },
-    onDemandEntries: {
-        maxInactiveAge: 25 * 1000,
-        pagesBufferLength: 2
+    httpAgentOptions: {
+        keepAlive: true
     }
 };
 
