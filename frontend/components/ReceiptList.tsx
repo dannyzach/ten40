@@ -23,7 +23,6 @@ import {
 import { Upload, Eye, FileJson, Trash2 } from "lucide-react";
 import { JsonViewer } from '@/components/JsonViewer';
 import { ImageViewer } from '@/components/ImageViewer';
-import { DebugPanel } from '@/components/DebugPanel';
 import { UploadArea } from './UploadArea';
 
 interface Receipt {
@@ -39,26 +38,18 @@ export const ReceiptList = () => {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [selectedJson, setSelectedJson] = useState<any | null>(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [debugMessages, setDebugMessages] = useState<string[]>([]);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<number | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const addDebugMessage = (message: string) => {
-        setDebugMessages(prev => [...prev, `${new Date().toISOString()} - ${message}`]);
-        console.log(message);
-    };
-
     const fetchReceipts = async () => {
         try {
-            addDebugMessage("Fetching receipts...");
             const response = await fetch('/api/receipts');
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             setReceipts(data);
-            addDebugMessage("Receipts fetched successfully");
         } catch (error) {
-            addDebugMessage(`Error fetching receipts: ${error}`);
+            console.error('Error fetching receipts:', error);
         }
     };
 
@@ -90,7 +81,6 @@ export const ReceiptList = () => {
         formData.append('file', file);
 
         try {
-            addDebugMessage("Starting file upload...");
             console.log('Sending request to /api/upload');
             
             const response = await fetch('/api/upload', {
@@ -108,14 +98,11 @@ export const ReceiptList = () => {
             const data = await response.json();
             console.log('Upload response:', data);
 
-            addDebugMessage("Upload successful, processing receipt...");
             await fetchReceipts();
-            addDebugMessage("Receipt processed and saved");
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Upload failed';
             console.error('Upload error:', error);
             setUploadError(message);
-            addDebugMessage(`Error: ${message}`);
         } finally {
             setIsUploading(false);
         }
@@ -126,7 +113,6 @@ export const ReceiptList = () => {
 
         setIsDeleting(true);
         try {
-            addDebugMessage(`Deleting receipt ${deleteConfirmOpen}...`);
             const response = await fetch(`/api/receipts/${deleteConfirmOpen}`, {
                 method: 'DELETE'
             });
@@ -135,10 +121,8 @@ export const ReceiptList = () => {
                 throw new Error(`Failed to delete receipt: ${response.statusText}`);
             }
 
-            addDebugMessage('Receipt deleted successfully');
             await fetchReceipts();
         } catch (error) {
-            addDebugMessage(`Error deleting receipt: ${error}`);
             console.error('Delete error:', error);
         } finally {
             setIsDeleting(false);
@@ -188,7 +172,13 @@ export const ReceiptList = () => {
                             <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                                 Upload Date
                             </TableCell>
-                            <TableCell align="left">
+                            <TableCell 
+                                align="left" 
+                                sx={{ 
+                                    width: { xs: '140px', sm: '220px' },
+                                    pr: { xs: 1, sm: 2 }
+                                }}
+                            >
                                 Actions
                             </TableCell>
                         </TableRow>
@@ -217,12 +207,18 @@ export const ReceiptList = () => {
                                 <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                                     {new Date(receipt.uploaded_at).toLocaleDateString()}
                                 </TableCell>
-                                <TableCell align="left">
+                                <TableCell 
+                                    align="right"
+                                    sx={{ 
+                                        width: { xs: '140px', sm: '220px' },
+                                        pr: { xs: 1, sm: 2 }
+                                    }}
+                                >
                                     <Box 
                                         sx={{ 
                                             display: 'flex', 
                                             gap: { xs: 0.5, sm: 1 },
-                                            justifyContent: 'flex-start',
+                                            justifyContent: 'flex-end',
                                             '& .MuiButton-root': {
                                                 minWidth: { xs: '32px', sm: 'auto' },
                                                 px: { xs: 1, sm: 2 }
@@ -268,8 +264,6 @@ export const ReceiptList = () => {
                     </TableBody>
                 </Table>
             </Box>
-
-            <DebugPanel messages={debugMessages} />
 
             {selectedImage && (
                 <ImageViewer
