@@ -31,12 +31,14 @@ import { UploadArea } from './UploadArea';
 interface Receipt {
     id: number;
     image_path: string;
-    original_filename: string;
-    uploaded_at: string;
+    vendor: string;
+    amount: string;
+    date: string;
+    payment_method: string;
     content: any;
 }
 
-type SortField = 'original_filename' | 'uploaded_at';
+type SortField = 'vendor' | 'amount' | 'date' | 'payment_method';
 type SortDirection = 'asc' | 'desc';
 
 export const ReceiptList = () => {
@@ -47,7 +49,7 @@ export const ReceiptList = () => {
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<number | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [sortField, setSortField] = useState<SortField>('uploaded_at');
+    const [sortField, setSortField] = useState<SortField>('date');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
     const [selectedReceipts, setSelectedReceipts] = useState<number[]>([]);
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
@@ -199,11 +201,12 @@ export const ReceiptList = () => {
             const results = await Promise.all(
                 selectedReceipts.map(id =>
                     fetch(`/api/receipts/${id}`, { method: 'DELETE' })
+                    .then(response => ({ id, success: response.ok }))
                 )
             );
 
-            const failedDeletes = results.filter(r => !r.ok).length;
-
+            const failedDeletes = results.filter(r => !r.success).length;
+            
             if (failedDeletes > 0) {
                 setBulkActionStatus({
                     show: true,
@@ -216,10 +219,12 @@ export const ReceiptList = () => {
                     message: 'Successfully deleted selected receipts',
                     type: 'success'
                 });
-                setSelectedReceipts([]);
             }
-
+            
+            // Clear selections and refresh list regardless of success
+            setSelectedReceipts([]);
             await fetchReceipts();
+            
         } catch (error) {
             console.error('Bulk delete error:', error);
             setBulkActionStatus({
@@ -227,6 +232,8 @@ export const ReceiptList = () => {
                 message: 'Error deleting receipts',
                 type: 'error'
             });
+            // Still refresh to ensure UI is in sync
+            await fetchReceipts();
         } finally {
             setIsDeleting(false);
         }
@@ -323,7 +330,7 @@ export const ReceiptList = () => {
                                     />
                                 </TableCell>
                                 <TableCell 
-                                    onClick={() => handleSort('original_filename')}
+                                    onClick={() => handleSort('vendor')}
                                     sx={{ 
                                         cursor: 'pointer',
                                         userSelect: 'none',
@@ -331,33 +338,50 @@ export const ReceiptList = () => {
                                     }}
                                 >
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        Receipt File Name
-                                        <SortIcon field="original_filename" />
+                                        Vendor
+                                        <SortIcon field="vendor" />
                                     </Box>
                                 </TableCell>
                                 <TableCell 
+                                    onClick={() => handleSort('amount')}
                                     sx={{ 
-                                        display: { xs: 'none', md: 'table-cell' },
                                         cursor: 'pointer',
                                         userSelect: 'none',
                                         '&:hover': { bgcolor: 'action.hover' }
                                     }}
-                                    onClick={() => handleSort('uploaded_at')}
                                 >
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        Upload Date
-                                        <SortIcon field="uploaded_at" />
+                                        Amount
+                                        <SortIcon field="amount" />
                                     </Box>
                                 </TableCell>
                                 <TableCell 
-                                    align="left" 
+                                    onClick={() => handleSort('date')}
                                     sx={{ 
-                                        width: { xs: '140px', sm: '220px' },
-                                        pr: { xs: 1, sm: 2 }
+                                        cursor: 'pointer',
+                                        userSelect: 'none',
+                                        '&:hover': { bgcolor: 'action.hover' }
                                     }}
                                 >
-                                    Actions
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        Date
+                                        <SortIcon field="date" />
+                                    </Box>
                                 </TableCell>
+                                <TableCell 
+                                    onClick={() => handleSort('payment_method')}
+                                    sx={{ 
+                                        cursor: 'pointer',
+                                        userSelect: 'none',
+                                        '&:hover': { bgcolor: 'action.hover' }
+                                    }}
+                                >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        Payment Method
+                                        <SortIcon field="payment_method" />
+                                    </Box>
+                                </TableCell>
+                                <TableCell align="left">Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -388,10 +412,31 @@ export const ReceiptList = () => {
                                         textOverflow: 'ellipsis',
                                         whiteSpace: 'nowrap'
                                     }}>
-                                        {receipt.original_filename}
+                                        {receipt.vendor}
                                     </TableCell>
-                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                        {new Date(receipt.uploaded_at).toLocaleDateString()}
+                                    <TableCell sx={{ 
+                                        maxWidth: { xs: '120px', sm: '200px', md: '300px' },
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap'
+                                    }}>
+                                        {receipt.amount}
+                                    </TableCell>
+                                    <TableCell sx={{ 
+                                        maxWidth: { xs: '120px', sm: '200px', md: '300px' },
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap'
+                                    }}>
+                                        {receipt.date}
+                                    </TableCell>
+                                    <TableCell sx={{ 
+                                        maxWidth: { xs: '120px', sm: '200px', md: '300px' },
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap'
+                                    }}>
+                                        {receipt.payment_method}
                                     </TableCell>
                                     <TableCell 
                                         align="left"

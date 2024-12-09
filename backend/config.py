@@ -4,11 +4,8 @@ from pathlib import Path
 class Config:
     """Application configuration"""
     def __init__(self):
-        # Get user's home directory
-        home = str(Path.home())
-        
-        # Create base directory for the application
-        self.base_dir = os.path.join(home, 'Documents', 'Receipts')
+        # Get backend directory path
+        self.base_dir = os.path.join(os.path.dirname(__file__), 'Receipts')
         
         # Ensure directories exist
         os.makedirs(self.base_dir, exist_ok=True)

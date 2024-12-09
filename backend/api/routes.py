@@ -61,8 +61,7 @@ def upload_file():
             with get_db() as db:
                 receipt = Receipt(
                     image_path=saved_filename,
-                    original_filename=original_filename,
-                    content=ocr_result.get('content', {})
+                    content=ocr_result['content']
                 )
                 db.add(receipt)
                 db.commit()
@@ -130,6 +129,7 @@ def delete_receipt(receipt_id):
         with get_db() as db:
             receipt = db.query(Receipt).get(receipt_id)
             if not receipt:
+                logger.warning(f"Receipt not found: {receipt_id}")
                 return jsonify({'error': 'Receipt not found'}), 404
 
             # Delete image file
@@ -137,11 +137,13 @@ def delete_receipt(receipt_id):
                 image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], receipt.image_path)
                 if os.path.exists(image_path):
                     os.remove(image_path)
+                    logger.info(f"Deleted image file: {image_path}")
             except Exception as e:
                 logger.error(f"Failed to delete image: {str(e)}")
 
             # Delete database record
             db.delete(receipt)
+            logger.info(f"Deleted receipt: {receipt_id}")
             
             return jsonify({'message': 'Receipt deleted successfully'})
     except Exception as e:

@@ -21,17 +21,44 @@ class Receipt(Base):
 
     id = Column(Integer, primary_key=True)
     image_path = Column(String, nullable=False)
-    original_filename = Column(String, nullable=False)
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    vendor = Column(String)
+    amount = Column(String)  # Using String to handle various currency formats
+    date = Column(String)    # Using String to handle various date formats
+    payment_method = Column(String)
     content = Column(JSON, nullable=False)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.content:
+            # Flatten nested JSON structure recursively
+            def flatten_dict(d, parent_key='', sep='_'):
+                items = []
+                for k, v in d.items():
+                    new_key = f"{parent_key}{sep}{k}" if parent_key else k
+                    if isinstance(v, dict):
+                        items.extend(flatten_dict(v, new_key, sep=sep).items())
+                    else:
+                        items.append((new_key, v))
+                return dict(items)
+
+            # Flatten and convert to lowercase
+            flattened = flatten_dict(self.content)
+            content_lower = {k.lower(): v for k, v in flattened.items()}
+            
+            self.vendor = content_lower.get('vendor') or 'Missing'
+            self.amount = content_lower.get('amount') or 'Missing'
+            self.date = content_lower.get('date') or 'Missing'
+            self.payment_method = content_lower.get('payment_method') or 'Missing'
 
     def to_dict(self):
         """Convert receipt to dictionary"""
         return {
             'id': self.id,
             'image_path': self.image_path,
-            'original_filename': self.original_filename,
-            'uploaded_at': self.uploaded_at.isoformat() if self.uploaded_at else None,
+            'vendor': self.vendor or 'Missing',
+            'amount': self.amount or 'Missing',
+            'date': self.date or 'Missing',
+            'payment_method': self.payment_method or 'Missing',
             'content': self.content
         }
 
@@ -51,4 +78,12 @@ def get_db():
         db.rollback()
         raise
     finally:
-        db.close() 
+        db.close()
+
+# Drop all tables and recreate
+def init_db():
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+
+# Initialize database
+init_db() 

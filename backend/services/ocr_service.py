@@ -71,7 +71,29 @@ class OCRService:
                             "content": [
                                 {
                                     "type": "text",
-                                    "text": "Extract the text from this image, ensuring all text is captured accurately. Do not include any markdown or code formatting. make sure to format the output as a clean JSON object. Extract and append the following fields at the end of the JSON object: Vendor, Amount, Date, Payment Method. If you cannot find any of the data points, leave it blank."
+                                    "text": """Extract the text from this image and format the output as a JSON object with two parts:
+1. The main fields at the root level (use exactly these field names):
+   - Vendor
+   - Amount
+   - Date
+   - Payment_Method
+
+2. A 'text' array containing all lines of text from the receipt in order, preserving the original formatting and content.
+
+Example format:
+{
+    "Vendor": "store name",
+    "Amount": "total amount",
+    "Date": "receipt date",
+    "Payment_Method": "payment type",
+    "text": [
+        "line 1 of receipt",
+        "line 2 of receipt",
+        ...
+    ]
+}
+
+Capture every line of text, including store details, items, prices, subtotals, taxes, and any additional information."""
                                 },  
                                 {
                                     "type": "image_url",
