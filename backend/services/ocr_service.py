@@ -71,8 +71,8 @@ class OCRService:
                             "content": [
                                 {
                                     "type": "text",
-                                    "text": "Extract the text from this image, ensuring all text is captured accurately. Do not include any markdown or code formatting. make sure to format the output as a clean JSON object."
-                                },
+                                    "text": "Extract the text from this image, ensuring all text is captured accurately. Do not include any markdown or code formatting. make sure to format the output as a clean JSON object. Extract and append the following fields at the end of the JSON object: Vendor, Amount, Date, Payment Method. If you cannot find any of the data points, leave it blank."
+                                },  
                                 {
                                     "type": "image_url",
                                     "image_url": {

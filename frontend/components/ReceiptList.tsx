@@ -18,9 +18,12 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    DialogContentText
+    DialogContentText,
+    Checkbox,
+    Alert,
+    Snackbar
 } from '@mui/material';
-import { Upload, Eye, FileJson, Trash2 } from "lucide-react";
+import { Upload, Eye, FileJson, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { JsonViewer } from '@/components/JsonViewer';
 import { ImageViewer } from '@/components/ImageViewer';
 import { UploadArea } from './UploadArea';
@@ -33,6 +36,9 @@ interface Receipt {
     content: any;
 }
 
+type SortField = 'original_filename' | 'uploaded_at';
+type SortDirection = 'asc' | 'desc';
+
 export const ReceiptList = () => {
     const [receipts, setReceipts] = useState<Receipt[]>([]);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -41,6 +47,15 @@ export const ReceiptList = () => {
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<number | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [sortField, setSortField] = useState<SortField>('uploaded_at');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+    const [selectedReceipts, setSelectedReceipts] = useState<number[]>([]);
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+    const [bulkActionStatus, setBulkActionStatus] = useState<{
+        show: boolean;
+        message: string;
+        type: 'success' | 'error';
+    }>({ show: false, message: '', type: 'success' });
 
     const fetchReceipts = async () => {
         try {
@@ -130,6 +145,93 @@ export const ReceiptList = () => {
         }
     };
 
+    const sortReceipts = (receipts: Receipt[]): Receipt[] => {
+        return [...receipts].sort((a, b) => {
+            const aValue = a[sortField];
+            const bValue = b[sortField];
+            
+            const comparison = sortDirection === 'asc' 
+                ? String(aValue).localeCompare(String(bValue))
+                : String(bValue).localeCompare(String(aValue));
+            
+            return comparison;
+        });
+    };
+
+    const handleSort = (field: SortField) => {
+        if (field === sortField) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
+
+    const SortIcon = ({ field }: { field: SortField }) => {
+        if (sortField !== field) return <ChevronUp className="w-4 h-4 text-gray-300" />;
+        return sortDirection === 'asc' 
+            ? <ChevronUp className="w-4 h-4" />
+            : <ChevronDown className="w-4 h-4" />;
+    };
+
+    const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.checked) {
+            setSelectedReceipts(receipts.map(receipt => receipt.id));
+        } else {
+            setSelectedReceipts([]);
+        }
+    };
+
+    const handleSelectOne = (id: number) => {
+        setSelectedReceipts(prev => {
+            if (prev.includes(id)) {
+                return prev.filter(receiptId => receiptId !== id);
+            } else {
+                return [...prev, id];
+            }
+        });
+    };
+
+    const handleBulkDelete = async () => {
+        setShowBulkDeleteConfirm(false);
+        setIsDeleting(true);
+        try {
+            const results = await Promise.all(
+                selectedReceipts.map(id =>
+                    fetch(`/api/receipts/${id}`, { method: 'DELETE' })
+                )
+            );
+
+            const failedDeletes = results.filter(r => !r.ok).length;
+
+            if (failedDeletes > 0) {
+                setBulkActionStatus({
+                    show: true,
+                    message: `Failed to delete ${failedDeletes} receipts`,
+                    type: 'error'
+                });
+            } else {
+                setBulkActionStatus({
+                    show: true,
+                    message: 'Successfully deleted selected receipts',
+                    type: 'success'
+                });
+                setSelectedReceipts([]);
+            }
+
+            await fetchReceipts();
+        } catch (error) {
+            console.error('Bulk delete error:', error);
+            setBulkActionStatus({
+                show: true,
+                message: 'Error deleting receipts',
+                type: 'error'
+            });
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <Container 
             maxWidth={false} 
@@ -154,115 +256,201 @@ export const ReceiptList = () => {
                 Receipt Organizer
             </Typography>
 
-            <UploadArea 
-                onUpload={handleFileUpload} 
-                isUploading={isUploading}
-                error={uploadError}
-            />
-
             <Box sx={{ 
-                width: '100%', 
-                overflowX: 'auto',
-                mt: { xs: 2, sm: 4 }
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: { xs: 2, sm: 4 }
             }}>
-                <Table size="small">
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Receipt File Name</TableCell>
-                            <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                Upload Date
-                            </TableCell>
-                            <TableCell 
-                                align="left" 
-                                sx={{ 
-                                    width: { xs: '140px', sm: '220px' },
-                                    pr: { xs: 1, sm: 2 }
-                                }}
-                            >
-                                Actions
-                            </TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {receipts.map((receipt) => (
-                            <TableRow 
-                                key={receipt.id} 
-                                hover
-                                onClick={() => setSelectedImage(receipt.image_path)}
-                                sx={{ 
-                                    cursor: 'pointer',
-                                    '&:hover': {
-                                        bgcolor: 'action.hover',
+                <TableContainer component={Paper}>
+                    <UploadArea 
+                        onUpload={handleFileUpload} 
+                        isUploading={isUploading}
+                        error={uploadError}
+                    />
+                </TableContainer>
+
+                {selectedReceipts.length > 0 && (
+                    <Box sx={{ 
+                        width: '100%',
+                        p: 2, 
+                        bgcolor: 'primary.light', 
+                        borderRadius: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2
+                    }}>
+                        <Typography sx={{ color: 'white' }}>
+                            {selectedReceipts.length} items selected
+                        </Typography>
+                        <Button
+                            variant="contained"
+                            color="error"
+                            onClick={() => setShowBulkDeleteConfirm(true)}
+                            disabled={isDeleting}
+                            size="small"
+                        >
+                            Delete Selected
+                        </Button>
+                    </Box>
+                )}
+
+                <TableContainer component={Paper} variant="outlined">
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow
+                                sx={{
+                                    bgcolor: 'grey.50',  // Light grey background
+                                    '& th': {  // Target all header cells
+                                        borderBottom: '2px solid',
+                                        borderColor: 'grey.200',
+                                        fontWeight: 600,
+                                        color: 'grey.700'
                                     }
                                 }}
                             >
-                                <TableCell sx={{ 
-                                    maxWidth: { xs: '120px', sm: '200px', md: '300px' },
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap'
-                                }}>
-                                    {receipt.original_filename}
-                                </TableCell>
-                                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                    {new Date(receipt.uploaded_at).toLocaleDateString()}
+                                <TableCell padding="checkbox">
+                                    <Checkbox
+                                        indeterminate={
+                                            selectedReceipts.length > 0 && 
+                                            selectedReceipts.length < receipts.length
+                                        }
+                                        checked={
+                                            receipts.length > 0 && 
+                                            selectedReceipts.length === receipts.length
+                                        }
+                                        onChange={handleSelectAll}
+                                    />
                                 </TableCell>
                                 <TableCell 
-                                    align="right"
+                                    onClick={() => handleSort('original_filename')}
+                                    sx={{ 
+                                        cursor: 'pointer',
+                                        userSelect: 'none',
+                                        '&:hover': { bgcolor: 'action.hover' }
+                                    }}
+                                >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        Receipt File Name
+                                        <SortIcon field="original_filename" />
+                                    </Box>
+                                </TableCell>
+                                <TableCell 
+                                    sx={{ 
+                                        display: { xs: 'none', md: 'table-cell' },
+                                        cursor: 'pointer',
+                                        userSelect: 'none',
+                                        '&:hover': { bgcolor: 'action.hover' }
+                                    }}
+                                    onClick={() => handleSort('uploaded_at')}
+                                >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        Upload Date
+                                        <SortIcon field="uploaded_at" />
+                                    </Box>
+                                </TableCell>
+                                <TableCell 
+                                    align="left" 
                                     sx={{ 
                                         width: { xs: '140px', sm: '220px' },
                                         pr: { xs: 1, sm: 2 }
                                     }}
                                 >
-                                    <Box 
-                                        sx={{ 
-                                            display: 'flex', 
-                                            gap: { xs: 0.5, sm: 1 },
-                                            justifyContent: 'flex-end',
-                                            '& .MuiButton-root': {
-                                                minWidth: { xs: '32px', sm: 'auto' },
-                                                px: { xs: 1, sm: 2 }
-                                            }
-                                        }}
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <Tooltip title="View">
-                                            <Button
-                                                variant="outlined"
-                                                size="small"
-                                                onClick={() => setSelectedImage(receipt.image_path)}
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                                <span className="hidden sm:inline ml-2">View</span>
-                                            </Button>
-                                        </Tooltip>
-                                        <Tooltip title="Data">
-                                            <Button
-                                                variant="outlined"
-                                                size="small"
-                                                onClick={() => setSelectedJson(receipt.content)}
-                                            >
-                                                <FileJson className="w-4 h-4" />
-                                                <span className="hidden sm:inline ml-2">Data</span>
-                                            </Button>
-                                        </Tooltip>
-                                        <Tooltip title="Delete">
-                                            <Button
-                                                variant="outlined"
-                                                color="error"
-                                                size="small"
-                                                onClick={() => setDeleteConfirmOpen(receipt.id)}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                                <span className="hidden sm:inline ml-2">Delete</span>
-                                            </Button>
-                                        </Tooltip>
-                                    </Box>
+                                    Actions
                                 </TableCell>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHead>
+                        <TableBody>
+                            {sortReceipts(receipts).map((receipt) => (
+                                <TableRow 
+                                    key={receipt.id} 
+                                    hover
+                                    onClick={() => setSelectedImage(receipt.image_path)}
+                                    sx={{ 
+                                        cursor: 'pointer',
+                                        '&:hover': {
+                                            bgcolor: 'action.hover',
+                                        }
+                                    }}
+                                >
+                                    <TableCell 
+                                        padding="checkbox"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Checkbox
+                                            checked={selectedReceipts.includes(receipt.id)}
+                                            onChange={() => handleSelectOne(receipt.id)}
+                                        />
+                                    </TableCell>
+                                    <TableCell sx={{ 
+                                        maxWidth: { xs: '120px', sm: '200px', md: '300px' },
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap'
+                                    }}>
+                                        {receipt.original_filename}
+                                    </TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                                        {new Date(receipt.uploaded_at).toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell 
+                                        align="left"
+                                        sx={{ 
+                                            width: { xs: '140px', sm: '220px' },
+                                            pr: { xs: 1, sm: 2 }
+                                        }}
+                                    >
+                                        <Box 
+                                            sx={{ 
+                                                display: 'flex', 
+                                                gap: { xs: 1, sm: 1.5 },
+                                                justifyContent: 'flex-start'
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <Tooltip title="View Receipt">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => setSelectedImage(receipt.image_path)}
+                                                    sx={{ 
+                                                        color: 'text.secondary',
+                                                        '&:hover': { color: '#2196f3' }
+                                                    }}
+                                                >
+                                                    <Eye size={20} strokeWidth={1.5} />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Tooltip title="View Data">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => setSelectedJson(receipt.content)}
+                                                    sx={{ 
+                                                        color: 'text.secondary',
+                                                        '&:hover': { color: '#2196f3' }
+                                                    }}
+                                                >
+                                                    <FileJson size={20} strokeWidth={1.5} />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Tooltip title="Delete">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => setDeleteConfirmOpen(receipt.id)}
+                                                    sx={{ 
+                                                        color: 'text.secondary',
+                                                        '&:hover': { color: '#f44336' }
+                                                    }}
+                                                >
+                                                    <Trash2 size={20} strokeWidth={1.5} />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </Box>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
             </Box>
 
             {selectedImage && (
@@ -307,6 +495,50 @@ export const ReceiptList = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <Dialog
+                open={showBulkDeleteConfirm}
+                onClose={() => setShowBulkDeleteConfirm(false)}
+            >
+                <DialogTitle>
+                    Confirm Delete
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to delete {selectedReceipts.length} selected receipts? 
+                        This action cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button
+                        onClick={() => setShowBulkDeleteConfirm(false)}
+                        color="inherit"
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleBulkDelete}
+                        color="error"
+                        variant="contained"
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={bulkActionStatus.show}
+                autoHideDuration={6000}
+                onClose={() => setBulkActionStatus(prev => ({ ...prev, show: false }))}
+            >
+                <Alert 
+                    severity={bulkActionStatus.type}
+                    onClose={() => setBulkActionStatus(prev => ({ ...prev, show: false }))}
+                >
+                    {bulkActionStatus.message}
+                </Alert>
+            </Snackbar>
         </Container>
     );
 };

@@ -51,7 +51,6 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onUpload, isUploading, e
                 gap: { xs: 1, sm: 2 },
                 borderStyle: 'dashed',
                 position: 'relative',
-                mx: { xs: 0.5, sm: 1, md: 2 },
                 cursor: 'pointer',
                 borderColor: isDragActive ? 'primary.main' : 'divider',
                 bgcolor: isDragActive ? 'action.hover' : 'background.paper',
@@ -59,6 +58,10 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onUpload, isUploading, e
                 '&:hover': {
                     borderColor: 'primary.main',
                     bgcolor: 'action.hover'
+                },
+                border: 'none',
+                '& .MuiPaper-root': {
+                    border: 'none'
                 }
             }}
         >
