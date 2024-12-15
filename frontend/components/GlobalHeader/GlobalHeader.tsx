@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { 
     AppBar,
     Toolbar,
@@ -8,12 +8,13 @@ import {
     Box,
     IconButton,
     Paper,
-    Popper,
-    Fade,
-    Button
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
-import { SearchResult, SearchResultGroup } from '@/types';
+import SearchIcon from '@mui/icons-material/Search';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { styled } from '@mui/material/styles';
+import { SearchResult } from '@/types';
 
 const SearchInput = styled(InputBase)(({ theme }) => ({
     marginLeft: theme.spacing(1),
@@ -53,127 +54,158 @@ const SearchResultItem = styled(Box)(({ theme }) => ({
     }
 }));
 
-const ResultType = styled(Typography)(({ theme }) => ({
-    fontSize: '0.75rem',
-    color: theme.palette.text.secondary,
-    marginRight: theme.spacing(1)
+const TaxDisplay = styled(Typography)(({ theme }) => ({
+    fontSize: '1.125rem',
+    fontWeight: 600,
+    letterSpacing: '0.5px',
+    textTransform: 'uppercase',
+    color: theme.palette.primary.main,
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(1),
+    '& .amount': {
+        fontWeight: 700,
+        color: theme.palette.success.main
+    }
 }));
 
-const ResultName = styled(Typography)({
-    fontSize: '0.875rem'
-});
-
 const GlobalHeader: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showSearchResults, setShowSearchResults] = useState(false);
+    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+    const searchRef = useRef<HTMLDivElement>(null);
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const defaultSearchResults: SearchResult[] = [
-    { id: '1', type: 'W-2', name: 'Google Inc', group: 'W-2 Employers' },
-    { id: '2', type: '1099', name: 'Freelance Client', group: '1099 Payers' },
-    { id: '3', type: 'expense', name: 'Office Supplies', group: 'Vendors' },
-    { id: '4', type: 'donation', name: 'Red Cross', group: 'Charities' },
-  ];
+    const defaultSearchResults: SearchResult[] = [
+        { id: '1', type: 'W-2', name: 'Google Inc', group: 'W-2 Employers' },
+        { id: '2', type: '1099', name: 'Freelance Client', group: '1099 Payers' },
+        { id: '3', type: 'expense', name: 'Office Supplies', group: 'Vendors' },
+        { id: '4', type: 'donation', name: 'Red Cross', group: 'Charities' },
+    ];
 
-  const [searchResults, setSearchResults] = useState([...defaultSearchResults]);
+    const [searchResults, setSearchResults] = useState([...defaultSearchResults]);
 
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowSearchResults(false);
-        if (isMobile) setIsSearchExpanded(false);
-      }
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+                setShowSearchResults(false);
+                if (isMobile) setIsSearchExpanded(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isMobile]);
+
+    const handleSearchFocus = () => {
+        setShowSearchResults(true);
+        setIsSearchExpanded(true);
     };
 
-    window.addEventListener('resize', handleResize);
-    document.addEventListener('mousedown', handleClickOutside);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      document.removeEventListener('mousedown', handleClickOutside);
+    const handleSearchClick = () => {
+        if (isMobile && !isSearchExpanded) {
+            setIsSearchExpanded(true);
+        }
     };
-  }, [isMobile]);
 
-  const handleSearchFocus = () => {
-    setShowSearchResults(true);
-    setIsSearchExpanded(true);
-  };
+    const groupedResults = searchResults.reduce((acc, result) => ({
+        ...acc,
+        [result.group]: [...(acc[result.group] || []), result]
+    }), {} as Record<string, SearchResult[]>);
 
-  const handleSearchClick = () => {
-    if (isMobile && !isSearchExpanded) {
-      setIsSearchExpanded(true);
-    }
-  };
+    return (
+        <AppBar position="sticky" color="default" elevation={1}>
+            <Toolbar>
+                <Typography
+                    variant="h6"
+                    component={Link}
+                    href="/"
+                    sx={{ 
+                        textDecoration: 'none',
+                        color: 'inherit',
+                        flexGrow: 0,
+                        display: isMobile && isSearchExpanded ? 'none' : 'block'
+                    }}
+                >
+                    ten40
+                </Typography>
 
-  const groupedResults = searchResults.reduce((acc, result) => ({
-    ...acc,
-    [result.group]: [...(acc[result.group] || []), result]
-  }), {} as Record<string, SearchResult[]>);
+                <Box sx={{ 
+                    flexGrow: 1, 
+                    display: 'flex', 
+                    justifyContent: 'center',
+                    visibility: (isMobile && isSearchExpanded) ? 'hidden' : 'visible',
+                    py: 1
+                }}>
+                    <TaxDisplay>
+                        CURRENT TAX: <span className="amount">+$500</span>
+                    </TaxDisplay>
+                </Box>
 
-  return (
-    <AppBar position="static" color="default" elevation={1}>
-      <Toolbar>
-        <Typography
-          variant="h6"
-          component={Link}
-          to="/"
-          sx={{ 
-            textDecoration: 'none',
-            color: 'inherit',
-            flexGrow: 0
-          }}
-        >
-          ten40
-        </Typography>
+                <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 2,
+                    ml: 'auto'
+                }}>
+                    <Box 
+                        ref={searchRef}
+                        sx={{ 
+                            position: 'relative',
+                            width: isSearchExpanded ? '100%' : 'auto',
+                            maxWidth: '300px',
+                            transition: 'width 0.2s ease-in-out'
+                        }}
+                    >
+                        {(!isMobile || isSearchExpanded) && (
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />
+                                <SearchInput
+                                    placeholder="Search..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onFocus={handleSearchFocus}
+                                    onClick={handleSearchClick}
+                                    sx={{ width: isSearchExpanded ? '100%' : '200px' }}
+                                />
+                            </Box>
+                        )}
+                        {showSearchResults && (
+                            <SearchResults elevation={3}>
+                                {Object.entries(groupedResults).map(([group, results]) => (
+                                    <ResultGroup key={group}>
+                                        <GroupHeader>{group}</GroupHeader>
+                                        {results.map((result) => (
+                                            <SearchResultItem key={result.id}>
+                                                <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+                                                    {result.type}
+                                                </Typography>
+                                                <Typography variant="body2">
+                                                    {result.name}
+                                                </Typography>
+                                            </SearchResultItem>
+                                        ))}
+                                    </ResultGroup>
+                                ))}
+                            </SearchResults>
+                        )}
+                    </Box>
 
-        <Box 
-          sx={{ 
-            position: 'relative',
-            flexGrow: 1,
-            mx: 2
-          }}
-        >
-          <SearchInput
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={handleSearchFocus}
-            onClick={handleSearchClick}
-          />
-          {showSearchResults && (
-            <SearchResults elevation={3}>
-                {Object.entries(groupedResults).map(([group, results]) => (
-                    <ResultGroup key={group}>
-                        <GroupHeader>{group}</GroupHeader>
-                        {results.map((result) => (
-                            <SearchResultItem key={result.id}>
-                                <ResultType>{result.type}</ResultType>
-                                <ResultName>{result.name}</ResultName>
-                            </SearchResultItem>
-                        ))}
-                    </ResultGroup>
-                ))}
-            </SearchResults>
-          )}
-        </Box>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="body2">
-            Current Tax: +$500
-          </Typography>
-          <IconButton
-            onClick={() => {/* TODO: Implement help panel */}}
-            title="Get Help"
-          >
-            ?
-          </IconButton>
-        </Box>
-      </Toolbar>
-    </AppBar>
-  );
+                    {(!isMobile || !isSearchExpanded) && (
+                        <IconButton
+                            onClick={() => {/* TODO: Implement help panel */}}
+                            title="Get Help"
+                            size="small"
+                            sx={{ ml: 1 }}
+                        >
+                            <HelpOutlineIcon />
+                        </IconButton>
+                    )}
+                </Box>
+            </Toolbar>
+        </AppBar>
+    );
 };
 
 export default GlobalHeader;

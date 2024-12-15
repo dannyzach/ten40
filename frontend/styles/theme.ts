@@ -50,6 +50,26 @@ export const theme = createTheme({
         },
       },
     },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#ffffff',
+          color: 'inherit'
+        }
+      }
+    },
+    MuiToolbar: {
+      styleOverrides: {
+        root: {
+          '@media (min-width: 600px)': {
+            minHeight: '64px'
+          },
+          '@media (max-width: 599px)': {
+            minHeight: '48px'
+          }
+        }
+      }
+    }
   },
   palette: {
     background: {
