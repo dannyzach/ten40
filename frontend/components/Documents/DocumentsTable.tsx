@@ -17,6 +17,12 @@ import {
     Alert,
     Snackbar,
     Fade,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    Button,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EditIcon from '@mui/icons-material/Edit';
@@ -207,6 +213,13 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         open: false,
         message: ''
     });
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [bulkActionStatus, setBulkActionStatus] = useState<{
+        show: boolean;
+        message: string;
+        type: 'success' | 'error';
+    }>({ show: false, message: '', type: 'success' });
 
     useEffect(() => {
         fetchDocuments();
@@ -595,24 +608,31 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
     };
 
     const handleBulkDelete = async () => {
+        if (!selected.length) return;
+        
+        setIsDeleting(true);
         try {
-            // For expenses, use the real API
-            if (type === 'Expenses') {
-                await documentsApi.deleteDocuments(selected);
-            }
-            // For other types, use mock deletion
-            setDeleteSnackbar({
-                open: true,
-                message: `Successfully deleted ${selected.length} items`
+            await documentsApi.deleteDocuments(selected);
+            
+            // Only clear selection and refresh if delete was successful
+            setSelected([]);
+            await fetchDocuments();
+            
+            setBulkActionStatus({
+                show: true,
+                message: 'Successfully deleted selected items',
+                type: 'success'
             });
-            await fetchDocuments(); // Refresh the list
-            setSelected([]); // Clear selection
+            setShowBulkDeleteConfirm(false);
         } catch (error) {
-            console.error('Error deleting documents:', error);
-            setDeleteSnackbar({
-                open: true,
-                message: 'Failed to delete selected items'
+            console.error('Bulk delete error:', error);
+            setBulkActionStatus({
+                show: true,
+                message: error instanceof Error ? error.message : 'Failed to delete selected items',
+                type: 'error'
             });
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -762,6 +782,43 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                     onClose={() => setSelectedImage(null)}
                 />
             )}
+
+            <Dialog
+                open={showBulkDeleteConfirm}
+                onClose={() => setShowBulkDeleteConfirm(false)}
+            >
+                <DialogTitle>Confirm Delete</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to delete {selected.length} selected items?
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setShowBulkDeleteConfirm(false)}>
+                        Cancel
+                    </Button>
+                    <Button 
+                        onClick={handleBulkDelete}
+                        color="error"
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={bulkActionStatus.show}
+                autoHideDuration={6000}
+                onClose={() => setBulkActionStatus(prev => ({ ...prev, show: false }))}
+            >
+                <Alert 
+                    severity={bulkActionStatus.type}
+                    onClose={() => setBulkActionStatus(prev => ({ ...prev, show: false }))}
+                >
+                    {bulkActionStatus.message}
+                </Alert>
+            </Snackbar>
         </>
     );
 }; 

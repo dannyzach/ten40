@@ -103,18 +103,17 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
         });
     };
 
-    const handleRemoveFilter = (field: string, value?: string) => {
+    const handleRemoveFilter = (field: keyof DocumentFilter, value?: string) => {
         const newFilters = { ...filters };
-        if (value && Array.isArray(newFilters[field as keyof DocumentFilter])) {
-            // Remove single value from array
-            const currentValues = newFilters[field as keyof DocumentFilter] as string[];
-            newFilters[field as keyof DocumentFilter] = currentValues.filter(v => v !== value) as any;
-            if ((newFilters[field as keyof DocumentFilter] as string[]).length === 0) {
-                delete newFilters[field as keyof DocumentFilter];
+        
+        if (value && Array.isArray(newFilters[field])) {
+            const currentValues = newFilters[field] as string[];
+            newFilters[field] = currentValues.filter(v => v !== value) as any;
+            if ((newFilters[field] as string[]).length === 0) {
+                delete newFilters[field];
             }
         } else {
-            // Remove entire field
-            delete newFilters[field as keyof DocumentFilter];
+            delete newFilters[field];
         }
         onFilterChange(newFilters);
     };
@@ -136,32 +135,34 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
                                 <Chip
                                     key={`${field.field}-${v}`}
                                     label={`${field.label}: ${v}`}
-                                    onDelete={() => handleRemoveFilter(field.field, v)}
+                                    onDelete={() => handleRemoveFilter(field.field as keyof DocumentFilter, v)}
                                     size="small"
                                 />
                             ));
-                        case 'number-range':
+                        case 'number-range': {
                             const range = value as { min?: number; max?: number };
                             if (!range.min && !range.max) return null;
                             return (
                                 <Chip
                                     key={field.field}
                                     label={`${field.label}: ${range.min || '0'} - ${range.max || '∞'}`}
-                                    onDelete={() => handleRemoveFilter(field.field)}
+                                    onDelete={() => handleRemoveFilter(field.field as keyof DocumentFilter)}
                                     size="small"
                                 />
                             );
-                        case 'date-range':
+                        }
+                        case 'date-range': {
                             const dates = value as { start?: string; end?: string };
                             if (!dates.start && !dates.end) return null;
                             return (
                                 <Chip
                                     key={field.field}
                                     label={`${field.label}: ${dates.start || '∞'} - ${dates.end || '∞'}`}
-                                    onDelete={() => handleRemoveFilter(field.field)}
+                                    onDelete={() => handleRemoveFilter(field.field as keyof DocumentFilter)}
                                     size="small"
                                 />
                             );
+                        }
                         default:
                             return null;
                     }
@@ -171,28 +172,33 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
     };
 
     const renderFilterField = (field: FilterField) => {
+        const filterValue = filters[field.field as keyof DocumentFilter];
+
         switch (field.type) {
-            case 'number-range':
+            case 'number-range': {
+                const range = filterValue as { min?: number; max?: number } || {};
                 return (
                     <Box sx={{ display: 'flex', gap: 2 }}>
                         <TextField
                             label={`Min ${field.label}`}
                             type="number"
                             size="small"
-                            value={filters[field.field]?.min || ''}
+                            value={range.min || ''}
                             onChange={(e) => handleNumberRangeChange(field.field, 'min', e.target.value)}
                         />
                         <TextField
                             label={`Max ${field.label}`}
                             type="number"
                             size="small"
-                            value={filters[field.field]?.max || ''}
+                            value={range.max || ''}
                             onChange={(e) => handleNumberRangeChange(field.field, 'max', e.target.value)}
                         />
                     </Box>
                 );
+            }
 
-            case 'date-range':
+            case 'date-range': {
+                const dates = filterValue as { start?: string; end?: string } || {};
                 return (
                     <Box sx={{ display: 'flex', gap: 2 }}>
                         <TextField
@@ -200,7 +206,7 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
                             type="date"
                             size="small"
                             InputLabelProps={{ shrink: true }}
-                            value={filters[field.field]?.start || ''}
+                            value={dates.start || ''}
                             onChange={(e) => handleDateRangeChange(field.field, 'start', e.target.value)}
                         />
                         <TextField
@@ -208,11 +214,12 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
                             type="date"
                             size="small"
                             InputLabelProps={{ shrink: true }}
-                            value={filters[field.field]?.end || ''}
+                            value={dates.end || ''}
                             onChange={(e) => handleDateRangeChange(field.field, 'end', e.target.value)}
                         />
                     </Box>
                 );
+            }
 
             case 'multi-select':
                 return (
@@ -220,7 +227,7 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
                         <InputLabel>{field.label}</InputLabel>
                         <Select
                             multiple
-                            value={filters[field.field] || []}
+                            value={(filterValue as string[]) || []}
                             onChange={(e) => handleMultiSelectChange(field.field, e.target.value as string[])}
                             label={field.label}
                         >

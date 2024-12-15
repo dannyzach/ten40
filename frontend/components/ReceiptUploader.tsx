@@ -9,7 +9,7 @@ import {
 import UploadIcon from '@mui/icons-material/Upload';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import { ReceiptTable } from './ReceiptTable';
+import { ReceiptTable } from './common';
 import { ImageViewer } from './ImageViewer';
 import { JsonViewer } from './JsonViewer';
 import { Receipt } from '@/types';

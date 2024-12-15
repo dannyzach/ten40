@@ -7,6 +7,7 @@ import { theme } from '../styles/theme';
 import { CacheProvider } from '@emotion/react';
 import createEmotionCache from '../lib/createEmotionCache';
 import { SearchProvider } from '../contexts/SearchContext';
+import { AppContextProvider } from '../contexts/AppContext';
 
 function MyApp({ Component, pageProps }: AppProps) {
     const clientSideEmotionCache = createEmotionCache();
@@ -15,11 +16,13 @@ function MyApp({ Component, pageProps }: AppProps) {
         <CacheProvider value={clientSideEmotionCache}>
             <ThemeProvider theme={theme}>
                 <SearchProvider>
-                    <ErrorBoundary>
-                        <Layout>
-                            <Component {...pageProps} />
-                        </Layout>
-                    </ErrorBoundary>
+                    <AppContextProvider>
+                        <ErrorBoundary>
+                            <Layout>
+                                <Component {...pageProps} />
+                            </Layout>
+                        </ErrorBoundary>
+                    </AppContextProvider>
                 </SearchProvider>
             </ThemeProvider>
         </CacheProvider>

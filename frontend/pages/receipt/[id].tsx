@@ -1,17 +1,14 @@
 import { useRouter } from 'next/router';
 import ReceiptDetail from '../../components/ReceiptDetail';
-import { Box, CircularProgress } from '@mui/material';
+import { Box } from '@mui/material';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 export default function ReceiptPage() {
   const router = useRouter();
   
   // Wait for the router to be ready and have query parameters
-  if (router.isLoading || !router.isReady) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <CircularProgress />
-      </Box>
-    );
+  if (!router.isReady) {
+    return <LoadingSpinner />;
   }
 
   const { id } = router.query;

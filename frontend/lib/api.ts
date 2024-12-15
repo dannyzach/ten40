@@ -36,11 +36,13 @@ export const api = {
         return response.json();
     },
 
-    async fetchReceipt(id: string | string[]): Promise<any> {
+    async fetchReceipt(id: string) {
         const response = await fetch(`/api/receipts/${id}`);
+        
         if (!response.ok) {
             throw new Error('Failed to fetch receipt');
         }
+        
         return response.json();
     }
 }; 

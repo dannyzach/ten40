@@ -1,4 +1,5 @@
-import { Document, DocumentType } from '@/types';
+import { Document, DocumentType, Receipt } from '@/types';
+import { API_BASE_URL } from '@/config';
 
 // Mock data for testing (excluding Expenses)
 const mockDocuments: Document[] = [
@@ -46,15 +47,14 @@ export const documentsApi = {
                 id: receipt.id.toString(),
                 type: 'Expenses' as const,
                 vendor: receipt.vendor,
-                amount: typeof receipt.amount === 'string' 
-                    ? parseFloat(receipt.amount.replace(/[^0-9.-]+/g, ''))
-                    : receipt.amount,
+                amount: receipt.amount,
                 date: receipt.date,
                 payment_method: receipt.payment_method || 'Unknown',
                 expenseType: receipt.category || 'Uncategorized',
                 status: receipt.status || 'pending',
                 uploadDate: receipt.date,
-                // Include the full original receipt data
+                image_path: receipt.image_path,
+                content: receipt.content,
                 originalReceipt: receipt
             }));
         }
@@ -95,25 +95,27 @@ export const documentsApi = {
     },
 
     async deleteDocument(id: string) {
-        // For expenses, use the real API
         try {
+            // Use the correct API endpoint without the base URL since it's handled by Next.js
             const response = await fetch(`/api/receipts/${id}`, {
                 method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
             });
 
             if (!response.ok) {
-                throw new Error('Failed to delete document');
+                throw new Error(`Failed to delete document: ${response.statusText}`);
             }
 
-            return await response.json();
+            return;
         } catch (error) {
             console.error('Error deleting document:', error);
-            throw error; // Re-throw to handle in the component
+            throw new Error('Failed to delete the selected items. Please try again.');
         }
     },
 
     async deleteDocuments(ids: string[]) {
-        // For expenses, use the real API
         try {
             await Promise.all(
                 ids.map(id => this.deleteDocument(id))
@@ -123,4 +125,14 @@ export const documentsApi = {
             throw error;
         }
     }
-}; 
+};
+
+export async function fetchReceipt(id: string): Promise<Receipt> {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/receipts/${id}`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch receipt');
+  }
+  
+  return response.json();
+} 
