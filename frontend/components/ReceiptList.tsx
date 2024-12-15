@@ -23,7 +23,12 @@ import {
     Alert,
     Snackbar
 } from '@mui/material';
-import { Upload, Eye, FileJson, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import UploadIcon from '@mui/icons-material/Upload';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import DataObjectIcon from '@mui/icons-material/DataObject';
+import DeleteIcon from '@mui/icons-material/Delete';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { JsonViewer } from '@/components/JsonViewer';
 import { ImageViewer } from '@/components/ImageViewer';
 import { UploadArea } from './UploadArea';
@@ -35,10 +40,11 @@ interface Receipt {
     amount: string;
     date: string;
     payment_method: string;
+    category: string;
     content: any;
 }
 
-type SortField = 'vendor' | 'amount' | 'date' | 'payment_method';
+type SortField = 'vendor' | 'amount' | 'date' | 'payment_method' | 'category';
 type SortDirection = 'asc' | 'desc';
 
 export const ReceiptList = () => {
@@ -170,10 +176,18 @@ export const ReceiptList = () => {
     };
 
     const SortIcon = ({ field }: { field: SortField }) => {
-        if (sortField !== field) return <ChevronUp className="w-4 h-4 text-gray-300" />;
+        if (sortField !== field) return (
+            <KeyboardArrowUpIcon 
+                sx={{ 
+                    width: 16, 
+                    height: 16, 
+                    color: 'text.disabled' 
+                }} 
+            />
+        );
         return sortDirection === 'asc' 
-            ? <ChevronUp className="w-4 h-4" />
-            : <ChevronDown className="w-4 h-4" />;
+            ? <KeyboardArrowUpIcon sx={{ width: 16, height: 16 }} />
+            : <KeyboardArrowDownIcon sx={{ width: 16, height: 16 }} />;
     };
 
     const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -280,7 +294,7 @@ export const ReceiptList = () => {
                 {selectedReceipts.length > 0 && (
                     <Box sx={{ 
                         width: '100%',
-                        p: 2, 
+                        p: 2,
                         bgcolor: 'primary.light', 
                         borderRadius: 1,
                         display: 'flex',
@@ -381,6 +395,19 @@ export const ReceiptList = () => {
                                         <SortIcon field="payment_method" />
                                     </Box>
                                 </TableCell>
+                                <TableCell 
+                                    onClick={() => handleSort('category')}
+                                    sx={{ 
+                                        cursor: 'pointer',
+                                        userSelect: 'none',
+                                        '&:hover': { bgcolor: 'action.hover' }
+                                    }}
+                                >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        Category
+                                        <SortIcon field="category" />
+                                    </Box>
+                                </TableCell>
                                 <TableCell align="left">Actions</TableCell>
                             </TableRow>
                         </TableHead>
@@ -438,6 +465,14 @@ export const ReceiptList = () => {
                                     }}>
                                         {receipt.payment_method}
                                     </TableCell>
+                                    <TableCell sx={{ 
+                                        maxWidth: { xs: '120px', sm: '200px', md: '300px' },
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap'
+                                    }}>
+                                        {receipt.category}
+                                    </TableCell>
                                     <TableCell 
                                         align="left"
                                         sx={{ 
@@ -462,7 +497,7 @@ export const ReceiptList = () => {
                                                         '&:hover': { color: '#2196f3' }
                                                     }}
                                                 >
-                                                    <Eye size={20} strokeWidth={1.5} />
+                                                    <VisibilityIcon sx={{ fontSize: 20 }} />
                                                 </IconButton>
                                             </Tooltip>
                                             <Tooltip title="View Data">
@@ -474,7 +509,7 @@ export const ReceiptList = () => {
                                                         '&:hover': { color: '#2196f3' }
                                                     }}
                                                 >
-                                                    <FileJson size={20} strokeWidth={1.5} />
+                                                    <DataObjectIcon sx={{ fontSize: 20 }} />
                                                 </IconButton>
                                             </Tooltip>
                                             <Tooltip title="Delete">
@@ -486,7 +521,7 @@ export const ReceiptList = () => {
                                                         '&:hover': { color: '#f44336' }
                                                     }}
                                                 >
-                                                    <Trash2 size={20} strokeWidth={1.5} />
+                                                    <DeleteIcon sx={{ fontSize: 20 }} />
                                                 </IconButton>
                                             </Tooltip>
                                         </Box>

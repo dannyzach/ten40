@@ -1,11 +1,12 @@
 import React from 'react';
+import { Container } from '@mui/material';
 import ReceiptList from '../components/ReceiptList';
 
 const HomePage: React.FC = () => {
     return (
-        <div className="container">
+        <Container maxWidth="lg" sx={{ py: 4 }}>
             <ReceiptList />
-        </div>
+        </Container>
     );
 };
 

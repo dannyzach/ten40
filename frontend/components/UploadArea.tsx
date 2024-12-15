@@ -7,8 +7,7 @@ import {
     LinearProgress, 
     Alert 
 } from '@mui/material';
-import { Upload } from "lucide-react";
-import type { FileRejection, DropzoneOptions } from 'react-dropzone';
+import UploadIcon from '@mui/icons-material/Upload';
 import { useDropzone } from 'react-dropzone';
 
 interface UploadAreaProps {
@@ -18,26 +17,19 @@ interface UploadAreaProps {
 }
 
 export const UploadArea: React.FC<UploadAreaProps> = ({ onUpload, isUploading, error }) => {
-    const dropzoneOptions: DropzoneOptions = {
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
         accept: {
             'image/jpeg': ['.jpg', '.jpeg'],
             'image/png': ['.png']
         },
         multiple: false,
         disabled: isUploading,
-        onDrop: async (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
-            try {
-                if (acceptedFiles?.[0]) {
-                    console.log('File selected:', acceptedFiles[0].name);
-                    await onUpload(acceptedFiles[0]);
-                }
-            } catch (error) {
-                console.error('Upload error:', error);
+        onDrop: async (acceptedFiles) => {
+            if (acceptedFiles?.[0]) {
+                await onUpload(acceptedFiles[0]);
             }
         }
-    };
-
-    const { getRootProps, getInputProps, isDragActive } = useDropzone(dropzoneOptions);
+    });
 
     return (
         <Paper 
@@ -58,10 +50,6 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onUpload, isUploading, e
                 '&:hover': {
                     borderColor: 'primary.main',
                     bgcolor: 'action.hover'
-                },
-                border: 'none',
-                '& .MuiPaper-root': {
-                    border: 'none'
                 }
             }}
         >
@@ -88,13 +76,13 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onUpload, isUploading, e
                     display: 'flex'
                 }}
             >
-                <Upload size={24} />
+                <UploadIcon />
             </Box>
 
             <Button
                 variant="contained"
                 component="span"
-                startIcon={<Upload size={16} />}
+                startIcon={<UploadIcon />}
                 disabled={isUploading}
                 sx={{
                     width: { xs: '100%', sm: 'auto' },

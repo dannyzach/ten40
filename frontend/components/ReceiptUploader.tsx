@@ -1,9 +1,22 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { Upload, CheckCircle, AlertCircle } from "lucide-react";
+import { 
+    Box, 
+    Typography, 
+    LinearProgress, 
+    Button,
+    styled
+} from '@mui/material';
+import UploadIcon from '@mui/icons-material/Upload';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
 import { ReceiptTable } from './ReceiptTable';
 import { ImageViewer } from './ImageViewer';
 import { JsonViewer } from './JsonViewer';
 import { Receipt } from '@/types';
+
+const HiddenInput = styled('input')({
+    display: 'none'
+});
 
 export const ReceiptUploader: React.FC = () => {
     const [isDragging, setIsDragging] = useState(false);
@@ -111,12 +124,26 @@ export const ReceiptUploader: React.FC = () => {
 
     return (
         <>
-            <div
-                className={`relative w-full h-64 rounded-lg border-2 border-dashed transition-all duration-200 ease-in-out
-                    ${isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-gray-50"}
-                    ${uploadStatus === "success" ? "border-green-500 bg-green-50" : ""}
-                    ${uploadStatus === "error" ? "border-red-500 bg-red-50" : ""}
-                `}
+            <Box
+                sx={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '256px', // equivalent to h-64
+                    borderRadius: 2,
+                    border: '2px dashed',
+                    borderColor: theme => {
+                        if (uploadStatus === "success") return 'success.main';
+                        if (uploadStatus === "error") return 'error.main';
+                        return isDragging ? 'primary.main' : 'divider';
+                    },
+                    bgcolor: theme => {
+                        if (uploadStatus === "success") return 'success.light';
+                        if (uploadStatus === "error") return 'error.light';
+                        return isDragging ? 'primary.light' : 'grey.50';
+                    },
+                    transition: 'all 0.2s ease-in-out',
+                    cursor: 'pointer'
+                }}
                 onDragEnter={handleDragEnter}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -125,63 +152,98 @@ export const ReceiptUploader: React.FC = () => {
                 tabIndex={0}
                 aria-label="Upload receipt"
             >
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
-                    <Upload
-                        className={`w-12 h-12 mb-4 transition-colors duration-200
-                            ${isDragging ? "text-blue-500" : "text-gray-400"}
-                            ${uploadStatus === "success" ? "text-green-500" : ""}
-                            ${uploadStatus === "error" ? "text-red-500" : ""}
-                        `}
-                    />
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        p: 3,
+                        textAlign: 'center'
+                    }}
+                >
+                    <Box sx={{ 
+                        mb: 2,
+                        color: theme => {
+                            if (uploadStatus === "success") return 'success.main';
+                            if (uploadStatus === "error") return 'error.main';
+                            return isDragging ? 'primary.main' : 'text.secondary';
+                        }
+                    }}>
+                        {uploadStatus === "success" ? <CheckCircleIcon sx={{ fontSize: 48 }} />
+                            : uploadStatus === "error" ? <ErrorIcon sx={{ fontSize: 48 }} />
+                            : <UploadIcon sx={{ fontSize: 48 }} />
+                        }
+                    </Box>
 
-                    <p className="mb-2 text-lg font-medium text-gray-700">
+                    <Typography 
+                        variant="h6" 
+                        sx={{ mb: 1, color: 'text.primary' }}
+                    >
                         {uploadStatus === "success" ? "Upload Complete!"
                             : uploadStatus === "error" ? "Upload Failed"
                             : "Drag and drop your receipt here"}
-                    </p>
+                    </Typography>
 
-                    <p className="mb-4 text-sm text-gray-500">
+                    <Typography 
+                        variant="body2" 
+                        sx={{ mb: 2, color: 'text.secondary' }}
+                    >
                         {uploadStatus === "error" ? uploadError
                             : "Or click to browse files (JPEG, PNG)"}
-                    </p>
+                    </Typography>
 
                     {uploadStatus === 'idle' && (
-                        <label className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600 transition-colors duration-200">
-                            <input
+                        <label>
+                            <HiddenInput
                                 type="file"
-                                className="hidden"
                                 accept="image/jpeg,image/png"
                                 onChange={handleFileSelect}
                             />
-                            Browse Files
+                            <Button
+                                variant="contained"
+                                component="span"
+                                startIcon={<UploadIcon />}
+                            >
+                                Browse Files
+                            </Button>
                         </label>
                     )}
-                </div>
-            </div>
+                </Box>
+            </Box>
 
             {uploadStatus === 'uploading' && (
-                <div className="mt-4">
-                    <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium text-gray-700">{fileName}</span>
-                        <span className="text-sm font-medium text-gray-700">{uploadProgress}%</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-blue-500 transition-all duration-300 ease-out rounded-full"
-                            style={{ width: `${uploadProgress}%` }}
-                        />
-                    </div>
-                </div>
+                <Box sx={{ mt: 2 }}>
+                    <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        mb: 1 
+                    }}>
+                        <Typography variant="body2" color="text.secondary">
+                            {fileName}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {uploadProgress}%
+                        </Typography>
+                    </Box>
+                    <LinearProgress 
+                        variant="determinate" 
+                        value={uploadProgress}
+                        sx={{ height: 8, borderRadius: 1 }}
+                    />
+                </Box>
             )}
 
-            <div className="mt-8">
+            <Box sx={{ mt: 4 }}>
                 <ReceiptTable 
                     receipts={receipts}
                     onViewImage={setSelectedImage}
                     onViewJson={setSelectedJson}
                     onDelete={setDeleteConfirmOpen}
                 />
-            </div>
+            </Box>
 
             {selectedImage && (
                 <ImageViewer

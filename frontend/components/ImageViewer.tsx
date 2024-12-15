@@ -4,10 +4,11 @@ import {
     DialogTitle, 
     DialogContent, 
     IconButton,
-    Box
+    Box,
+    useMediaQuery,
+    Theme
 } from '@mui/material';
-import { X } from "lucide-react";
-import { useMediaQuery, Theme } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 interface ImageViewerProps {
     imagePath: string;
@@ -26,7 +27,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ imagePath, onClose }) 
             <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 Receipt Image
                 <IconButton onClick={onClose} size="small">
-                    <X size={18} />
+                    <CloseIcon fontSize="small" />
                 </IconButton>
             </DialogTitle>
             <DialogContent sx={{ bgcolor: 'black', p: 2 }}>

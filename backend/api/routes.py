@@ -4,6 +4,7 @@ import os
 import logging
 from models.database import get_db, Receipt
 from services.ocr_service import OCRService
+from services.categorization_service import CategorizationService
 import uuid
 from PIL import Image
 from datetime import datetime
@@ -56,12 +57,21 @@ def upload_file():
         ocr_result = OCRService.extract_receipt_data(filepath)
         logger.info(f"OCR result: {ocr_result}")
         
+        # Add categorization step
+        try:
+            category = CategorizationService.categorize_receipt(ocr_result['content'])
+            logger.info(f"Categorized as: {category}")
+        except Exception as e:
+            logger.error(f"Categorization error: {str(e)}")
+            category = "Other expenses"
+        
         # Save to database
         try:
             with get_db() as db:
                 receipt = Receipt(
                     image_path=saved_filename,
-                    content=ocr_result['content']
+                    content=ocr_result['content'],
+                    category=category
                 )
                 db.add(receipt)
                 db.commit()

@@ -28,10 +28,12 @@ This application allows users to upload receipt images and automatically extract
     - Flask web framework
     - SQLite with SQLAlchemy ORM
     - PIL for image processing
+    - OpenAI GPT-4 Vision API for OCR
   - Frontend:
     - Next.js 14
     - TypeScript
-    - Material-UI components
+    - Material-UI (MUI) v5 components
+    - Emotion for styling
     - React-dropzone for file handling
 
 - **Architecture**
@@ -46,7 +48,7 @@ This application allows users to upload receipt images and automatically extract
   └── frontend/
       ├── components/    # React components
       ├── pages/         # Next.js pages
-      └── styles/        # CSS modules
+      └── styles/        # MUI theme configuration
   ```
 
 ### For QA Engineers
@@ -138,6 +140,8 @@ This application allows users to upload receipt images and automatically extract
 ## Error Handling
 - Image validation errors
 - OCR processing failures
+- OpenAI API communication errors
+- JSON parsing errors
 - API timeouts
 - Database errors
 
@@ -184,3 +188,24 @@ Once both servers are running:
    - Select individual or all receipts using checkboxes
    - Responsive design adapts to screen size
    - Real-time updates after actions
+
+## Project Structure
+```
+frontend/
+├── components/
+│   ├── GlobalHeader/
+│   │   ├── GlobalHeader.tsx
+│   │   └── types.ts
+│   └── ErrorBoundary/
+├── pages/
+│   ├── _app.tsx
+│   └── index.tsx
+└── styles/
+    └── theme.ts
+```
+
+## Technology Choices
+- Next.js for the frontend framework
+- Material-UI (MUI) for component library and styling
+- Emotion for CSS-in-JS styling
+- TypeScript for type safety

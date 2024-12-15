@@ -3,6 +3,11 @@ export interface Receipt {
     image_path: string;
     original_filename: string;
     uploaded_at: string;
+    vendor: string;
+    amount: string;
+    date: string;
+    payment_method: string;
+    category: string;
     content: {
         store_name: string;
         date: string;
@@ -15,4 +20,15 @@ export interface Receipt {
         tax: number;
         total_amount: number;
     };
+}
+
+export interface SearchResult {
+    id: string;
+    type: string;
+    name: string;
+    group: string;
+}
+
+export interface SearchResultGroup {
+    [key: string]: SearchResult[];
 } 

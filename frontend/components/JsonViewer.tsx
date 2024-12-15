@@ -7,14 +7,19 @@ import {
     Paper,
     Box
 } from '@mui/material';
-import { X } from "lucide-react";
+import CloseIcon from '@mui/icons-material/Close';
 
 interface JsonViewerProps {
     data: any;
+    isExpanded: boolean;
     onClose: () => void;
 }
 
-export const JsonViewer: React.FC<JsonViewerProps> = ({ data, onClose }) => {
+export const JsonViewer: React.FC<JsonViewerProps> = ({ 
+    data, 
+    isExpanded, 
+    onClose 
+}) => {
     return (
         <Dialog 
             open={true} 
@@ -25,7 +30,7 @@ export const JsonViewer: React.FC<JsonViewerProps> = ({ data, onClose }) => {
             <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 Receipt Data
                 <IconButton onClick={onClose} size="small">
-                    <X size={18} />
+                    <CloseIcon fontSize="small" />
                 </IconButton>
             </DialogTitle>
             <DialogContent>

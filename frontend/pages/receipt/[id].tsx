@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router';
-import ReceiptDetail from '../../src/components/ReceiptDetail';
+import ReceiptDetail from '../../components/ReceiptDetail';
 import { Box } from '@mui/material';
 
 export default function ReceiptPage() {
@@ -11,4 +11,4 @@ export default function ReceiptPage() {
       <ReceiptDetail receiptId={id} />
     </Box>
   );
-}
+} 

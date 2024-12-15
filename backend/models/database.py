@@ -25,6 +25,7 @@ class Receipt(Base):
     amount = Column(String)  # Using String to handle various currency formats
     date = Column(String)    # Using String to handle various date formats
     payment_method = Column(String)
+    category = Column(String)
     content = Column(JSON, nullable=False)
 
     def __init__(self, **kwargs):
@@ -49,6 +50,11 @@ class Receipt(Base):
             self.amount = content_lower.get('amount') or 'Missing'
             self.date = content_lower.get('date') or 'Missing'
             self.payment_method = content_lower.get('payment_method') or 'Missing'
+            
+            # Add category if not already set
+            if not self.category:
+                from services.categorization_service import CategorizationService
+                self.category = CategorizationService.categorize_receipt(self.content)
 
     def to_dict(self):
         """Convert receipt to dictionary"""
@@ -59,6 +65,7 @@ class Receipt(Base):
             'amount': self.amount or 'Missing',
             'date': self.date or 'Missing',
             'payment_method': self.payment_method or 'Missing',
+            'category': self.category or 'Other expenses',
             'content': self.content
         }
 
