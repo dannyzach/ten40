@@ -1,13 +1,12 @@
-import React from 'react';
-import { Container } from '@mui/material';
-import ReceiptList from '../components/ReceiptList';
+import { useEffect } from 'react';
+import { useRouter } from 'next/router';
 
-const HomePage: React.FC = () => {
-    return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-            <ReceiptList />
-        </Container>
-    );
-};
+export default function HomePage() {
+    const router = useRouter();
 
-export default HomePage;
+    useEffect(() => {
+        router.replace('/dashboard');
+    }, [router]);
+
+    return null;
+}

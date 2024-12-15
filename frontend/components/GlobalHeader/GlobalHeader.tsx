@@ -69,7 +69,12 @@ const TaxDisplay = styled(Typography)(({ theme }) => ({
     }
 }));
 
-const GlobalHeader: React.FC = () => {
+// Add children to the component props
+interface GlobalHeaderProps {
+    children?: React.ReactNode;
+}
+
+const GlobalHeader: React.FC<GlobalHeaderProps> = ({ children }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearchResults, setShowSearchResults] = useState(false);
     const [isSearchExpanded, setIsSearchExpanded] = useState(false);
@@ -115,8 +120,20 @@ const GlobalHeader: React.FC = () => {
     }), {} as Record<string, SearchResult[]>);
 
     return (
-        <AppBar position="sticky" color="default" elevation={1}>
+        <AppBar 
+            position="fixed" 
+            color="default" 
+            elevation={1}
+            sx={{ 
+                zIndex: theme => theme.zIndex.drawer + 1,
+                borderRadius: 0,
+                '& .MuiToolbar-root': {
+                    borderRadius: 0,
+                }
+            }}
+        >
             <Toolbar>
+                {children}
                 <Typography
                     variant="h6"
                     component={Link}

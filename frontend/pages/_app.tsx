@@ -2,7 +2,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import type { AppProps } from 'next/app';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import GlobalHeader from '../components/GlobalHeader/GlobalHeader';
+import { Layout } from '../components/Layout/Layout';
 import { theme } from '../styles/theme';
 import { CacheProvider } from '@emotion/react';
 import createEmotionCache from '../lib/createEmotionCache';
@@ -20,8 +20,9 @@ function MyApp({ Component, pageProps, emotionCache = clientSideEmotionCache }: 
             <ThemeProvider theme={theme}>
                 <CssBaseline />
                 <ErrorBoundary>
-                    <GlobalHeader />
-                    <Component {...pageProps} />
+                    <Layout>
+                        <Component {...pageProps} />
+                    </Layout>
                 </ErrorBoundary>
             </ThemeProvider>
         </CacheProvider>

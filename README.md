@@ -14,12 +14,16 @@ This application allows users to upload receipt images and automatically extract
   - Interactive data visualization
   - Bulk operations support
   - Responsive design for all devices
+  - Consistent layout with fixed header and navigation
+  - Modern, flat design interface
 
 - **User Experience**
   - Modern, intuitive interface
   - Real-time feedback on all operations
   - Error handling with clear user messaging
   - Fast response times with asynchronous processing
+  - Persistent navigation with mobile responsiveness
+  - Unified design language across all pages
 
 ### For Engineers
 - **Tech Stack**
@@ -47,7 +51,15 @@ This application allows users to upload receipt images and automatically extract
   │   └── app.py         # Application entry
   └── frontend/
       ├── components/    # React components
+      │   ├── GlobalHeader/   # Application header
+      │   ├── LeftNav/        # Navigation drawer
+      │   ├── Layout/         # Main layout wrapper
+      │   └── ...
       ├── pages/         # Next.js pages
+      │   ├── dashboard/      # Dashboard views
+      │   ├── documents/      # Receipt management
+      │   ├── 1040/          # Tax form handling
+      │   └── profile/       # User settings
       └── styles/        # MUI theme configuration
   ```
 
@@ -83,7 +95,8 @@ This application allows users to upload receipt images and automatically extract
 
 2. Install dependencies:
    ```bash
-   pip install -r services/requirements.txt
+   cd backend
+   pip install -r requirements.txt
    ```
 
 3. Configure environment:
@@ -155,6 +168,10 @@ This application allows users to upload receipt images and automatically extract
 - [ ] Export functionality
 - [ ] Advanced search capabilities
 - [ ] Receipt categorization
+- [ ] Dark mode support
+- [ ] Customizable layout options
+- [ ] Enhanced mobile experience
+- [ ] Integration with tax software
 
 ## Using the Application
 

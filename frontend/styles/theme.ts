@@ -54,18 +54,22 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundColor: '#ffffff',
-          color: 'inherit'
+          color: 'inherit',
+          borderRadius: 0,
         }
       }
     },
     MuiToolbar: {
       styleOverrides: {
         root: {
+          borderRadius: 0,
           '@media (min-width: 600px)': {
-            minHeight: '64px'
+            minHeight: '64px',
+            padding: '0 24px',
           },
           '@media (max-width: 599px)': {
-            minHeight: '48px'
+            minHeight: '48px',
+            padding: '0 16px',
           }
         }
       }

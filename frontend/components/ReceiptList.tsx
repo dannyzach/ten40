@@ -258,10 +258,16 @@ export const ReceiptList = () => {
             maxWidth={false} 
             disableGutters 
             sx={{ 
-                px: { xs: 1, sm: 2, md: 4 },
-                py: { xs: 2, sm: 4 },
-                maxWidth: '100vw',
-                overflowX: 'hidden'
+                height: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
+                px: { xs: 2, sm: 3, md: 4 },
+                py: { xs: 2, sm: 3 },
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
             }}
         >
             <Typography 
