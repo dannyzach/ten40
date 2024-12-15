@@ -4,22 +4,27 @@ An intelligent document processing application that extracts, analyzes, and orga
 
 ## Overview
 
-This application allows users to upload receipt images and automatically extracts structured data using OCR technology. The extracted data is presented in a user-friendly interface with advanced sorting, filtering, and bulk operations capabilities.
+This application allows users to upload and manage various tax documents including receipts, W-2s, 1099s, and donation records. It features intelligent data extraction, advanced filtering, and Gmail-style bulk operations.
 
 ### For Product Managers
 - **Key Features**
-  - Seamless receipt upload via drag-and-drop or file selection
+  - Seamless document upload via drag-and-drop or file selection
   - Real-time processing status feedback
   - Intelligent data extraction (vendor, amount, date, line items)
+  - Advanced filtering and sorting capabilities
+  - Gmail-style bulk operations
+  - Global search functionality
+  - Document type categorization (Receipts, W-2, 1099, Donations)
   - Interactive data visualization
-  - Bulk operations support
   - Responsive design for all devices
-  - Consistent layout with fixed header and navigation
   - Modern, flat design interface
 
 - **User Experience**
   - Modern, intuitive interface
   - Real-time feedback on all operations
+  - Advanced filtering system with persistent state
+  - Bulk selection and operations
+  - Global search across all documents
   - Error handling with clear user messaging
   - Fast response times with asynchronous processing
   - Persistent navigation with mobile responsiveness
@@ -38,7 +43,8 @@ This application allows users to upload receipt images and automatically extract
     - TypeScript
     - Material-UI (MUI) v5 components
     - Emotion for styling
-    - React-dropzone for file handling
+    - React Context for state management
+    - Custom hooks for shared functionality
 
 - **Architecture**
   ```
@@ -205,6 +211,33 @@ Once both servers are running:
    - Select individual or all receipts using checkboxes
    - Responsive design adapts to screen size
    - Real-time updates after actions
+
+### Document Management Features
+1. **Document Types**
+   - Receipts/Expenses
+   - W-2 Forms
+   - 1099 Forms
+   - Donation Records
+
+2. **Advanced Filtering**
+   - Filter by document type
+   - Filter by date range
+   - Filter by amount range
+   - Filter by vendor/employer
+   - Filter by payment method
+   - Filter by status
+
+3. **Bulk Operations**
+   - Select multiple documents
+   - Bulk delete
+   - Gmail-style selection interface
+   - Real-time status updates
+
+4. **Search and Sort**
+   - Global search across all documents
+   - Sort by any column
+   - Persistent sort state
+   - Smart date handling
 
 ## Project Structure
 ```

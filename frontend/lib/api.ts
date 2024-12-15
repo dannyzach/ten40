@@ -34,5 +34,13 @@ export const api = {
             throw new Error(`Failed to delete receipt: ${response.statusText}`);
         }
         return response.json();
+    },
+
+    async fetchReceipt(id: string | string[]): Promise<any> {
+        const response = await fetch(`/api/receipts/${id}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch receipt');
+        }
+        return response.json();
     }
 }; 

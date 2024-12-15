@@ -9,12 +9,14 @@ import {
     IconButton,
     Paper,
     useMediaQuery,
-    useTheme
+    useTheme,
+    TextField
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { styled } from '@mui/material/styles';
 import { SearchResult } from '@/types';
+import { useSearch } from '@/contexts/SearchContext';
 
 const SearchInput = styled(InputBase)(({ theme }) => ({
     marginLeft: theme.spacing(1),
@@ -75,7 +77,7 @@ interface GlobalHeaderProps {
 }
 
 const GlobalHeader: React.FC<GlobalHeaderProps> = ({ children }) => {
-    const [searchQuery, setSearchQuery] = useState('');
+    const { searchQuery, setSearchQuery } = useSearch();
     const [showSearchResults, setShowSearchResults] = useState(false);
     const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);

@@ -6,24 +6,21 @@ import { Layout } from '../components/Layout/Layout';
 import { theme } from '../styles/theme';
 import { CacheProvider } from '@emotion/react';
 import createEmotionCache from '../lib/createEmotionCache';
+import { SearchProvider } from '../contexts/SearchContext';
 
-// Client-side cache, shared for the whole session
-const clientSideEmotionCache = createEmotionCache();
+function MyApp({ Component, pageProps }: AppProps) {
+    const clientSideEmotionCache = createEmotionCache();
 
-interface MyAppProps extends AppProps {
-  emotionCache?: typeof clientSideEmotionCache;
-}
-
-function MyApp({ Component, pageProps, emotionCache = clientSideEmotionCache }: MyAppProps) {
     return (
-        <CacheProvider value={emotionCache}>
+        <CacheProvider value={clientSideEmotionCache}>
             <ThemeProvider theme={theme}>
-                <CssBaseline />
-                <ErrorBoundary>
-                    <Layout>
-                        <Component {...pageProps} />
-                    </Layout>
-                </ErrorBoundary>
+                <SearchProvider>
+                    <ErrorBoundary>
+                        <Layout>
+                            <Component {...pageProps} />
+                        </Layout>
+                    </ErrorBoundary>
+                </SearchProvider>
             </ThemeProvider>
         </CacheProvider>
     );

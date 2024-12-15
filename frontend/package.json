@@ -13,10 +13,10 @@
     "@emotion/server": "^11.11.0",
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.16.11",
-    "@mui/material": "^5.15.3",
-    "next": "^14.0.4",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "@mui/material": "^5.x.x",
+    "next": "^14.x.x",
+    "react": "^18.x.x",
+    "react-dom": "^18.x.x",
     "react-dropzone": "^14.2.3"
   },
   "devDependencies": {

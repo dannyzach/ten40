@@ -1,77 +1,89 @@
-import React from 'react';
-import { 
-    Box, 
-    Typography, 
-    Paper,
-    CircularProgress
-} from '@mui/material';
 import { useEffect, useState } from 'react';
-import { Receipt } from '@/types';
+import { Box, Typography, CircularProgress, Paper } from '@mui/material';
+import { api } from '../lib/api';
 
 interface ReceiptDetailProps {
-    receiptId: string | string[] | undefined;
+  receiptId: string | string[] | undefined;
+}
+
+interface Receipt {
+  id: string;
+  total: number;
+  date: string;
+  merchant: string;
+  items: Array<{
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
 }
 
 export default function ReceiptDetail({ receiptId }: ReceiptDetailProps) {
-    const [receipt, setReceipt] = useState<Receipt | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (receiptId) {
-            fetchReceipt();
-        }
-    }, [receiptId]);
-
-    const fetchReceipt = async () => {
-        try {
-            const response = await fetch(`/api/receipts/${receiptId}`);
-            if (!response.ok) throw new Error('Failed to fetch receipt');
-            const data = await response.json();
-            setReceipt(data);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                <CircularProgress />
-            </Box>
-        );
+  useEffect(() => {
+    async function loadReceipt() {
+      if (!receiptId) return;
+      
+      try {
+        setLoading(true);
+        const data = await api.fetchReceipt(receiptId);
+        setReceipt(data);
+      } catch (err) {
+        setError('Failed to load receipt details');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     }
 
-    if (error) {
-        return (
-            <Box sx={{ p: 2 }}>
-                <Typography color="error">{error}</Typography>
-            </Box>
-        );
-    }
+    loadReceipt();
+  }, [receiptId]);
 
-    if (!receipt) {
-        return (
-            <Box sx={{ p: 2 }}>
-                <Typography>Receipt not found</Typography>
-            </Box>
-        );
-    }
-
+  if (loading) {
     return (
-        <Paper sx={{ p: 3 }}>
-            <Typography variant="h5" gutterBottom>
-                Receipt Details
-            </Typography>
-            <Box sx={{ mt: 2 }}>
-                <Typography><strong>Vendor:</strong> {receipt.vendor}</Typography>
-                <Typography><strong>Amount:</strong> {receipt.amount}</Typography>
-                <Typography><strong>Date:</strong> {receipt.date}</Typography>
-                <Typography><strong>Payment Method:</strong> {receipt.payment_method}</Typography>
-                <Typography><strong>Category:</strong> {receipt.category}</Typography>
-            </Box>
-        </Paper>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
     );
+  }
+
+  if (error) {
+    return (
+      <Box>
+        <Typography color="error">{error}</Typography>
+      </Box>
+    );
+  }
+
+  if (!receipt) {
+    return (
+      <Box>
+        <Typography>Receipt not found</Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Paper elevation={2} sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>Receipt Details</Typography>
+      
+      <Box mb={3}>
+        <Typography variant="h6">Merchant: {receipt.merchant}</Typography>
+        <Typography>Date: {new Date(receipt.date).toLocaleDateString()}</Typography>
+        <Typography>Total: ${receipt.total.toFixed(2)}</Typography>
+      </Box>
+
+      <Typography variant="h6" gutterBottom>Items</Typography>
+      {receipt.items.map((item, index) => (
+        <Box key={index} mb={1}>
+          <Typography>
+            {item.name} - ${item.price.toFixed(2)} x {item.quantity}
+          </Typography>
+        </Box>
+      ))}
+    </Paper>
+  );
 } 
