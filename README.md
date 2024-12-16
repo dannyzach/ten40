@@ -62,7 +62,7 @@ This application allows users to upload and manage various tax documents includi
       │   ├── Layout/         # Main layout wrapper
       │   └── ...
       ├── pages/         # Next.js pages
-      │   ├── dashboard/      # Dashboard views
+      │   ├─�� dashboard/      # Dashboard views
       │   ├── documents/      # Receipt management
       │   ├── 1040/          # Tax form handling
       │   └── profile/       # User settings
@@ -86,7 +86,7 @@ This application allows users to upload and manage various tax documents includi
 ## Setup and Installation
 
 ### Prerequisites
-- Python 3.11
+- Python 3.11 (required, Python 3.13 is not supported due to package compatibility)
 - Node.js 16+
 - npm or yarn
 - OpenAI API key
