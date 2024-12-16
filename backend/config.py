@@ -1,19 +1,17 @@
 import os
-from pathlib import Path
 
 class Config:
-    """Application configuration"""
+    """Base configuration"""
     def __init__(self):
-        # Get backend directory path
-        self.base_dir = os.path.join(os.path.dirname(__file__), 'Receipts')
-        
-        # Ensure directories exist
-        os.makedirs(self.base_dir, exist_ok=True)
-        os.makedirs(os.path.join(self.base_dir, 'uploads'), exist_ok=True)
-        
-        # Set paths
-        self.db_path = os.path.join(self.base_dir, 'receipts.db')
-        self.upload_folder = os.path.join(self.base_dir, 'uploads')
+        self.db_path = os.path.join('data', 'receipts.db')
+        self.upload_folder = os.path.join('Receipts', 'uploads')
 
-config = Config()
+class TestConfig(Config):
+    """Test configuration"""
+    def __init__(self):
+        self.db_path = ':memory:'  # Use in-memory SQLite for tests
+        self.upload_folder = 'test_uploads'
+
+# Use test config if TESTING environment variable is set
+config = TestConfig() if os.getenv('TESTING') else Config()
   

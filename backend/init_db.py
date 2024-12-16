@@ -1,4 +1,4 @@
-from backend.models.database import Base, get_engine
+from models.database import Base, get_engine
 
 def init_db():
     Base.metadata.drop_all(bind=get_engine())
