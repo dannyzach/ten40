@@ -33,7 +33,7 @@ This application allows users to upload and manage various tax documents includi
 ### For Engineers
 - **Tech Stack**
   - Backend:
-    - Python 3.9+
+    - Python 3.11 (required)
     - Flask web framework
     - SQLite with SQLAlchemy ORM
     - PIL for image processing
@@ -86,7 +86,7 @@ This application allows users to upload and manage various tax documents includi
 ## Setup and Installation
 
 ### Prerequisites
-- Python 3.9+
+- Python 3.11
 - Node.js 16+
 - npm or yarn
 - OpenAI API key
