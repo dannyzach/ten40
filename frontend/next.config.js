@@ -9,6 +9,16 @@ const nextConfig = {
             }
         ];
     },
+    api: {
+        bodyParser: {
+            sizeLimit: '16mb',
+        },
+        responseLimit: '16mb',
+    },
+    httpAgentOptions: {
+        keepAlive: true,
+        timeout: 120000, // 120 seconds to match Flask's timeout
+    },
 };
 
 module.exports = nextConfig;

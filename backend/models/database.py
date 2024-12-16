@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, JSON, DateTime, Numeric, ForeignKey, Enum
+from sqlalchemy import create_engine, Column, Integer, String, JSON, DateTime, Numeric, ForeignKey, Enum, inspect
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.orm import sessionmaker
 from config import config
@@ -129,10 +129,12 @@ def get_db():
     finally:
         db.close()
 
-# Drop all tables and recreate
+# Drop all tables and recreate - should only be called explicitly
 def init_db():
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
 
-# Initialize database
-init_db() 
+# Only create tables if they don't exist
+inspector = inspect(engine)
+if not inspector.has_table('receipts'):
+    Base.metadata.create_all(engine) 

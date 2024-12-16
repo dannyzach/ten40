@@ -2,13 +2,13 @@ from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from werkzeug.utils import secure_filename
 import os
 import logging
-from models.database import get_db, Receipt, ReceiptChangeHistory, ExpenseCategory
+from models.database import get_db, Receipt, ReceiptChangeHistory
 from services.ocr_service import OCRService
 from services.categorization_service import CategorizationService
 import uuid
 from PIL import Image
 from datetime import datetime
-from decimal import Decimal
+from config import config
 
 # Configure logging
 logger = logging.getLogger('api.routes')
@@ -25,18 +25,25 @@ def verify_image(filepath):
         logger.error(f"Image verification failed: {str(e)}")
         return False
 
+def create_error_response(message, details=None, status_code=500):
+    """Create a standardized error response"""
+    response = {'error': message}
+    if details:
+        response['details'] = str(details)
+    return jsonify(response), status_code
+
 @api_bp.route('/upload', methods=['POST'])
 def upload_file():
     logger.info("Received upload request")
     try:
         if 'file' not in request.files:
             logger.error("No file part in request")
-            return jsonify({'error': 'No file part'}), 400
+            return create_error_response('No file part', status_code=400)
         
         file = request.files['file']
         if file.filename == '':
             logger.error("No selected file")
-            return jsonify({'error': 'No selected file'}), 400
+            return create_error_response('No selected file', status_code=400)
         
         logger.info(f"Processing file: {file.filename}")
         
@@ -52,7 +59,7 @@ def upload_file():
         # Verify image
         if not verify_image(filepath):
             logger.error("Failed to verify saved image")
-            return jsonify({'error': 'Failed to save image'}), 500
+            return create_error_response('Failed to save image')
         
         try:
             # Process with OCR
@@ -92,11 +99,11 @@ def upload_file():
             except:
                 pass
             logger.error(f"Processing error: {str(e)}")
-            return jsonify({'error': str(e)}), 500
+            return create_error_response('Failed to process receipt', str(e))
         
     except Exception as e:
         logger.error(f"Upload error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return create_error_response('Failed to upload receipt', str(e))
 
 @api_bp.route('/receipts', methods=['GET'])
 def get_receipts():
@@ -119,11 +126,11 @@ def get_receipt(receipt_id):
         with get_db() as db:
             receipt = db.query(Receipt).get(receipt_id)
             if not receipt:
-                return jsonify({'error': 'Receipt not found'}), 404
+                return create_error_response('Receipt not found', status_code=404)
             return jsonify(receipt.to_dict())
     except Exception as e:
         logger.error(f"Failed to get receipt {receipt_id}: {str(e)}")
-        return jsonify({'error': 'Database error'}), 500
+        return create_error_response('Failed to fetch receipt', str(e))
 
 @api_bp.route('/receipts/<int:receipt_id>', methods=['PUT'])
 def update_receipt(receipt_id):
@@ -209,7 +216,7 @@ def update_receipt_fields(receipt_id):
         with get_db() as db:
             receipt = db.query(Receipt).get(receipt_id)
             if not receipt:
-                return jsonify({'error': 'Receipt not found'}), 404
+                return create_error_response('Receipt not found', status_code=404)
 
             # Track changes for each updated field
             for field, value in data.items():
@@ -233,7 +240,7 @@ def update_receipt_fields(receipt_id):
             
     except Exception as e:
         logger.error(f"Failed to update receipt {receipt_id}: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return create_error_response('Failed to update receipt', str(e))
 
 @api_bp.route('/receipts/<int:receipt_id>/history', methods=['GET'])
 def get_receipt_history(receipt_id):
@@ -243,7 +250,7 @@ def get_receipt_history(receipt_id):
             # Verify receipt exists
             receipt = db.query(Receipt).get(receipt_id)
             if not receipt:
-                return jsonify({'error': 'Receipt not found'}), 404
+                return create_error_response('Receipt not found', status_code=404)
 
             # Get changes ordered by timestamp
             changes = db.query(ReceiptChangeHistory)\
@@ -260,4 +267,4 @@ def get_receipt_history(receipt_id):
 
     except Exception as e:
         logger.error(f"Failed to get history for receipt {receipt_id}: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return create_error_response('Failed to fetch receipt history', str(e))
