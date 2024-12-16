@@ -62,7 +62,7 @@ This application allows users to upload and manage various tax documents includi
       │   ├── Layout/         # Main layout wrapper
       │   └── ...
       ├── pages/         # Next.js pages
-      │   ├─�� dashboard/      # Dashboard views
+      │   ├── dashboard/      # Dashboard views
       │   ├── documents/      # Receipt management
       │   ├── 1040/          # Tax form handling
       │   └── profile/       # User settings
@@ -147,8 +147,41 @@ This application allows users to upload and manage various tax documents includi
 - Run backend tests:
   ```bash
   cd backend
-  pytest
+  pytest                                  # Run all tests
+  pytest tests/test_api_integration.py    # Run integration tests only
   ```
+
+#### Test Types
+1. **Unit Tests**
+   - Test individual components in isolation
+   - Mock external dependencies
+   - Fast execution
+
+2. **Integration Tests**
+   - Test the API contract through HTTP endpoints
+   - No mocking of server functionality
+   - Verify:
+     - Upload and process receipts
+     - Retrieve receipt data
+     - Update receipt information
+     - Delete receipts
+     - Error handling
+
+3. **API Contract**
+   - Upload Receipt (`POST /api/upload`)
+     - Success: 200 with receipt data
+     - Error: 400 for invalid requests
+   - Get Receipts (`GET /api/receipts`)
+     - Success: 200 with list of receipts
+   - Get Receipt (`GET /api/receipts/{id}`)
+     - Success: 200 with receipt data
+     - Error: 404 if not found
+   - Update Receipt (`PATCH /api/receipts/{id}/update`)
+     - Success: 200 with updated data
+     - Error: 404 if not found
+   - Delete Receipt (`DELETE /api/receipts/{id}`)
+     - Success: 200 on deletion
+     - Error: 404 if not found
 
 ### API Endpoints
 - `POST /api/upload` - Upload and process receipt
