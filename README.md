@@ -1,74 +1,67 @@
 # Document Management System
 
-A full-stack document management system built with Next.js and Flask, designed to handle various types of financial documents including W-2s, 1099s, expenses, and donations.
+A full-stack document management system built with Next.js and Flask, designed to handle various types of financial documents including W-2s, 1099s, expenses, and donations. The system features OCR capabilities powered by OpenAI's GPT-4 Vision API for automated document processing.
 
 ## Project Structure
 
 ```
 ├── frontend/
 │   ├── components/
-│   │   ├── Documents/                 # Document management components
-│   │   │   ├── DocumentFilters.tsx    # Advanced filtering system
-│   │   │   ├── DocumentUploadArea.tsx # Document upload UI/logic
-│   │   │   ├── DocumentUploadFab.tsx  # Floating upload button
-│   │   │   ├── DocumentsTable.tsx     # Main documents display
-│   │   │   └── DocumentsTabs.tsx      # Document type navigation
-│   │   ├── GlobalHeader/              # Application header
-│   │   ├── LeftNav/                   # Navigation sidebar
-│   │   ├── Layout/                    # Main layout wrapper
-│   │   └── common/                    # Shared components
-│   ├── contexts/                      # React contexts
-│   │   └── SearchContext.tsx          # Global search state
-│   ├── lib/                           # Shared utilities
-│   │   └── api/                       # API client configuration
-│   ├── .env.development              # Development environment variables
-│   ├── .eslintrc.js                 # ESLint configuration
-│   └── package.json                  # Frontend dependencies
+│   │   ├── Documents/              # Document management components
+│   │   │   ├── DocumentFilters     # Advanced filtering system
+│   │   │   ├── DocumentUploadArea  # Document upload UI/logic
+│   │   │   ├── DocumentUploadFab   # Floating upload button
+│   │   │   ├── DocumentsTable      # Main documents display
+│   │   │   └── DocumentsTabs       # Document type navigation
+│   │   ├── GlobalHeader/           # Application header
+│   │   ├── LeftNav/               # Navigation sidebar
+│   │   ├── Layout/                # Main layout wrapper
+│   │   └── common/                # Shared components
+│   ├── contexts/                  # React contexts
+│   │   └── SearchContext         # Global search state
+│   ├── lib/                      # Shared utilities
+│   │   └── api/                  # API client configuration
+│   └── styles/                   # Global styles and theme
 ├── backend/
-│   ├── api/                         # API endpoints
-│   │   └── routes.py                # Route handlers
-│   ├── models/                      # Database models
-│   │   └── database.py              # SQLAlchemy models
-│   ├── services/                    # Business logic
-│   │   ├── ocr_service.py          # OCR processing
+│   ├── api/                      # API endpoints
+│   │   └── routes.py            # Route handlers
+│   ├── models/                   # Database models
+│   │   └── database.py          # SQLAlchemy models
+│   ├── services/                # Business logic
+│   │   ├── ocr_service.py      # OCR processing
 │   │   └── categorization_service.py # Document categorization
-│   ├── tests/                       # Test suites
-│   ├── app.py                       # Flask application
-│   ├── config.py                    # Configuration
-│   └── requirements.txt             # Python dependencies
+│   └── tests/                   # Test suites
 ```
 
 ## Technologies Used
 
 ### Frontend
-- **Framework**: Next.js 14
+- **Framework**: Next.js 14 (chosen for its built-in routing, SSR capabilities, and TypeScript support)
 - **Language**: TypeScript
-- **UI Library**: Material-UI (MUI) v5
-- **State Management**: React Context
+- **UI Library**: Material-UI v5 (chosen for comprehensive component library and enterprise-ready features)
+- **State Management**: React Context (preferred over Redux for simpler implementation and better performance)
 - **HTTP Client**: Axios
 - **File Upload**: react-dropzone
 - **Styling**: Emotion (CSS-in-JS)
-- **Code Quality**: ESLint, Prettier
 
 ### Backend
-- **Framework**: Flask
-- **Database**: SQLite
+- **Framework**: Flask (chosen for its lightweight nature and microservices compatibility)
+- **Database**: SQLite (chosen for zero configuration and easy maintenance)
 - **ORM**: SQLAlchemy
 - **OCR Processing**: OpenAI GPT-4 Vision API
 - **Image Processing**: Pillow
 - **Testing**: pytest
-- **API Documentation**: OpenAPI/Swagger
-- **WSGI Server**: gunicorn
+- **Documentation**: OpenAPI/Swagger
 
 ## Frontend-Backend Integration
 
 ### API Configuration
 - Backend runs on `http://localhost:3456`
 - Frontend configured in `.env.development`:
-  ```
-  NEXT_PUBLIC_API_URL=http://localhost:3456
-  NEXT_PUBLIC_API_TIMEOUT=120000
-  ```
+```
+NEXT_PUBLIC_API_URL=http://localhost:3456
+NEXT_PUBLIC_API_TIMEOUT=120000
+```
 
 ### API Endpoints
 ```
@@ -80,166 +73,8 @@ PATCH /api/receipts/{id}     # Update document
 GET /api/images/{filename}   # Serve document images
 ```
 
-## File Descriptions
-
-### Frontend Components
-
-#### Documents/
-- `DocumentFilters.tsx`
-  - Advanced filtering system for documents
-  - Supports filtering by date, amount, vendor, status
-  - Real-time filter updates
-
-- `DocumentUploadArea.tsx`
-  - Drag-and-drop file upload
-  - Upload progress tracking
-  - File validation
-  - Error handling
-
-- `DocumentsTable.tsx`
-  - Displays documents in sortable table
-  - Bulk selection operations
-  - Real-time updates
-  - Responsive design
-
-#### Layout/
-- `Layout.tsx`
-  - Main application layout
-  - Responsive sidebar
-  - Header integration
-
-#### Common/
-- `DialogWrapper.tsx`
-  - Reusable modal dialog
-  - Standardized styling
-  - Accessibility features
-
-### Backend Components
-
-#### api/routes.py
-- RESTful API endpoints
-- File upload handling
-- Document CRUD operations
-- Error handling
-- Response formatting
-
-#### models/database.py
-- SQLAlchemy ORM models
-- Document schema
-- Database migrations
-- Relationship definitions
-
-#### services/
-- `ocr_service.py`
-  - OpenAI Vision API integration
-  - Image preprocessing
-  - Text extraction
-  - Error handling
-
-- `categorization_service.py`
-  - Document type detection
-  - Category assignment
-  - Machine learning integration
-
-## Setup Instructions
-
-### Backend Setup
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Create .env file:
-OPENAI_API_KEY=your_key_here
-UPLOAD_FOLDER=uploads
-DB_PATH=data/documents.db
-
-python app.py
-```
-
-### Frontend Setup
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## Development Guidelines
-
-### API Integration
-- Use the `documentsApi` client in `frontend/lib/api/documents.ts`
-- All API calls should include error handling
-- Implement retry logic for failed requests
-- Maintain consistent error response format
-
-### State Management
-- Use React Context for global state
-- Implement local state for component-specific data
-- Consider performance implications of context updates
-
-### Testing
-- Backend: Run tests with `pytest`
-- Frontend: Component testing with React Testing Library
-- API integration tests in `backend/tests/`
-
-### Error Handling
-- Implement proper error boundaries
-- Use consistent error message format
-- Log errors appropriately
-- Provide user-friendly error messages
-
-## Production Deployment
-
-### Backend
-- Use gunicorn for production server
-- Implement proper logging
-- Configure CORS appropriately
-- Set up proper database backups
-
-### Frontend
-- Build with `npm run build`
-- Implement proper caching strategies
-- Configure CDN for static assets
-- Set up proper environment variables
-
-## Security Considerations
-- Implement file type validation
-- Set maximum file size limits
-- Sanitize user inputs
-- Implement rate limiting
-- Use proper CORS configuration
-
-## Performance Optimization
-- Implement proper caching
-- Use pagination for large datasets
-- Optimize image processing
-- Implement lazy loading
-- Use proper indexing in database
-
-## Monitoring and Logging
-- Backend logging configuration
-- Frontend error tracking
-- Performance monitoring
-- API usage tracking
-- Database monitoring
-
-## Known Limitations
-- Maximum file size: 15MB
-- Supported formats: JPEG, PNG
-- Processing time varies with image quality
-- Rate limits on OCR API
-
-## Future Improvements
-- Batch upload processing
-- Advanced search capabilities
-- Document version control
-- Export functionality
-- Dark mode support
-
 ## Database Schema
 
-### Entity Relationship Diagram
 ```mermaid
 erDiagram
     Receipt ||--o{ ReceiptChangeHistory : "tracks_changes"
@@ -252,6 +87,7 @@ erDiagram
         string payment_method
         string category
         json content
+        string status
     }
     ReceiptChangeHistory {
         int id PK
@@ -265,7 +101,6 @@ erDiagram
 
 ## Architecture Overview
 
-### High-Level System Architecture
 ```mermaid
 graph TB
     subgraph Frontend
@@ -296,45 +131,6 @@ graph TB
     FA --> DB
 ```
 
-## Technology Choices Rationale
-
-### Frontend
-- **Next.js**: Selected for:
-  - Built-in routing system
-  - Server-side rendering capabilities
-  - API routes feature
-  - Excellent TypeScript support
-  - Strong developer ecosystem
-
-- **Material-UI**: Chosen for:
-  - Comprehensive component library
-  - Customizable theming system
-  - Enterprise-ready components
-  - Accessibility compliance
-  - Responsive design support
-
-- **React Context**: Preferred over Redux because:
-  - Simpler implementation for our scope
-  - Built into React
-  - Sufficient for our state management needs
-  - Easier to maintain
-  - Better performance for our use case
-
-### Backend
-- **Flask**: Selected for:
-  - Lightweight and flexible
-  - Easy integration with SQLAlchemy
-  - Simple to extend
-  - Great for microservices
-  - Strong Python ecosystem
-
-- **SQLite**: Chosen for:
-  - Zero configuration needed
-  - File-based database
-  - Perfect for moderate data loads
-  - Easy backup and maintenance
-  - Built-in Python support
-
 ## React Context Structure
 
 ### SearchContext
@@ -351,26 +147,11 @@ Purpose:
 - Filters DocumentsTable results
 - Provides real-time search capabilities
 
-Implementation:
-```typescript
-export const SearchProvider: React.FC = ({ children }) => {
-    const [searchQuery, setSearchQuery] = useState('');
-    
-    return (
-        <SearchContext.Provider value={{ searchQuery, setSearchQuery }}>
-            {children}
-        </SearchContext.Provider>
-    );
-};
-```
-
 ## Styling Guidelines
 
 ### Theme Configuration
 Located in `frontend/styles/theme.ts`:
 ```typescript
-import { createTheme } from '@mui/material/styles';
-
 export const theme = createTheme({
     palette: {
         primary: {
@@ -389,9 +170,6 @@ export const theme = createTheme({
         h1: { fontSize: '2.5rem', fontWeight: 500 },
         h2: { fontSize: '2rem', fontWeight: 500 },
         h3: { fontSize: '1.75rem', fontWeight: 500 }
-    },
-    shape: {
-        borderRadius: 8
     }
 });
 ```
@@ -400,7 +178,6 @@ export const theme = createTheme({
 
 1. **Component-Level Styling**
    ```typescript
-   // Use MUI's sx prop for component-specific styles
    <Box
        sx={{
            display: 'flex',
@@ -435,61 +212,204 @@ export const theme = createTheme({
    >
    ```
 
-### Theme Customization
+## Key Components
 
-1. **Extending the Theme**
-   ```typescript
-   const customTheme = createTheme(theme, {
-       components: {
-           MuiButton: {
-               styleOverrides: {
-                   root: {
-                       borderRadius: 20
-                   }
-               }
-           }
-       }
-   });
-   ```
+### Documents/
+- `DocumentFilters.tsx`: Advanced filtering system with support for multiple filter types
+- `DocumentUploadArea.tsx`: Drag-and-drop file upload with progress tracking
+- `DocumentsTable.tsx`: Main document display with sorting and filtering
+- `DocumentsTabs.tsx`: Navigation between document types
 
-2. **Adding Custom Colors**
-   ```typescript
-   declare module '@mui/material/styles' {
-       interface Palette {
-           custom: {
-               main: string;
-               light: string;
-               dark: string;
-           };
-       }
-       interface PaletteOptions {
-           custom?: {
-               main: string;
-               light: string;
-               dark: string;
-           };
-       }
-   }
-   ```
+### Services/
+- `ocr_service.py`: Handles document OCR using OpenAI's GPT-4 Vision API
+- `categorization_service.py`: Automatically categorizes documents based on content
 
-### Global Style Guidelines
+## Development Guidelines
 
-1. **Spacing**
-   - Use theme.spacing() for consistent spacing
-   - Follow 8px grid system
-   - Use MUI's built-in spacing props
+### API Integration
+- Use the `documentsApi` client in `frontend/lib/api/documents.ts`
+- All API calls should include error handling
+- Implement retry logic for failed requests
+- Maintain consistent error response format
 
-2. **Colors**
-   - Use palette colors from theme
-   - Avoid hardcoded color values
-   - Use semantic color names
+### State Management
+- Use React Context for global state
+- Implement local state for component-specific data
+- Consider performance implications of context updates
 
-3. **Typography**
-   - Use MUI's typography variants
-   - Maintain consistent font hierarchy
-   - Use responsive font sizes
+### Testing
+- Backend: Run tests with `pytest`
+- Frontend: Component testing with React Testing Library
+- API integration tests in `backend/tests/`
 
-4. **Layout**
-   - Use MUI Grid system for layouts
-   - Implement responsive breakpoints
-   - Follow mobile-first approach
+## Security Considerations
+- Implement file type validation
+- Set maximum file size limits
+- Sanitize user inputs
+- Implement rate limiting
+- Use proper CORS configuration
+
+## Performance Optimization
+- Implement proper caching
+- Use pagination for large datasets
+- Optimize image processing
+- Implement lazy loading
+- Use proper indexing in database
+
+## API Documentation
+
+### Document Upload
+```
+POST /api/upload
+Content-Type: multipart/form-data
+
+Request:
+- file: File (required) - Image file (JPEG, PNG)
+
+Response:
+{
+    "id": number,
+    "image_path": string,
+    "vendor": string,
+    "amount": string,
+    "date": string,
+    "payment_method": string,
+    "category": string,
+    "content": object
+}
+
+Errors:
+- 400: Invalid file type or size
+- 500: Processing error
+```
+
+### List Documents
+```
+GET /api/receipts
+Query Parameters:
+- type: string (optional) - Filter by document type (W-2, 1099, Expenses, Donations)
+- status: string (optional) - Filter by status (pending, approved, rejected)
+
+Response:
+[{
+    "id": number,
+    "image_path": string,
+    "vendor": string,
+    "amount": string,
+    "date": string,
+    "payment_method": string,
+    "category": string,
+    "content": object,
+    "status": string
+}]
+```
+
+### Get Single Document
+```
+GET /api/receipts/{id}
+
+Response:
+{
+    "id": number,
+    "image_path": string,
+    "vendor": string,
+    "amount": string,
+    "date": string,
+    "payment_method": string,
+    "category": string,
+    "content": object,
+    "status": string
+}
+
+Errors:
+- 404: Document not found
+```
+
+### Update Document
+```
+PATCH /api/receipts/{id}
+Content-Type: application/json
+
+Request Body:
+{
+    "vendor"?: string,
+    "amount"?: string,
+    "date"?: string,
+    "payment_method"?: string,
+    "category"?: string,
+    "status"?: string
+}
+
+Response:
+{
+    "success": boolean,
+    "receipt_id": number,
+    "updated_fields": object,
+    "updated_at": string
+}
+
+Errors:
+- 400: Invalid field values
+- 404: Document not found
+```
+
+### Delete Document
+```
+DELETE /api/receipts/{id}
+
+Response:
+{
+    "message": "Receipt deleted successfully"
+}
+
+Errors:
+- 404: Document not found
+```
+
+### Get Document Image
+```
+GET /api/images/{filename}
+
+Response:
+- Image file (JPEG/PNG)
+
+Errors:
+- 404: Image not found
+```
+
+### Get Document History
+```
+GET /api/receipts/{id}/history
+
+Response:
+[{
+    "field": string,
+    "new_value": string,
+    "changed_at": string,
+    "changed_by": string
+}]
+
+Errors:
+- 404: Document not found
+```
+
+### API Error Response Format
+All API errors follow this structure:
+```json
+{
+    "error": string,
+    "details"?: string | object,
+    "code"?: string
+}
+```
+
+### API Rate Limits
+- Upload endpoint: 10 requests per minute
+- Other endpoints: 100 requests per minute
+- Image serving: 1000 requests per minute
+
+### API Authentication
+Currently using CORS for security. Future versions will implement JWT authentication.
+
+### API Versioning
+API version is currently v1 (implicit). Future versions will use explicit versioning in the URL path.

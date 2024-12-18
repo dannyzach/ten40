@@ -9,6 +9,9 @@ import uuid
 from PIL import Image
 from datetime import datetime
 from config import config
+from functools import wraps
+from http import HTTPStatus
+from decimal import Decimal, InvalidOperation
 
 # Configure logging
 logger = logging.getLogger('api.routes')
@@ -31,6 +34,88 @@ def create_error_response(message, details=None, status_code=500):
     if details:
         response['details'] = str(details)
     return jsonify(response), status_code
+
+def validate_request(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not request.is_json:
+            return jsonify({
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Request must be JSON"
+                }
+            }), HTTPStatus.BAD_REQUEST
+        return f(*args, **kwargs)
+    return decorated_function
+
+def validate_field_values(data):
+    errors = {}
+    
+    # Validate vendor
+    if 'vendor' in data:
+        if not isinstance(data['vendor'], str) or len(data['vendor']) > 100:
+            errors['vendor'] = "Vendor must be a string of max 100 characters"
+    
+    # Validate amount
+    if 'amount' in data:
+        try:
+            amount = Decimal(data['amount'])
+            if amount <= 0 or amount > Decimal('999999.99'):
+                errors['amount'] = "Amount must be between 0.01 and 999999.99"
+        except InvalidOperation:
+            errors['amount'] = "Amount must be a valid decimal number"
+    
+    # Validate date
+    if 'date' in data:
+        try:
+            date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+            if date > datetime.now().date():
+                errors['date'] = "Date cannot be in the future"
+        except ValueError:
+            errors['date'] = "Date must be in YYYY-MM-DD format"
+    
+    # Validate payment_method - case insensitive
+    valid_payment_methods = ["credit_card", "debit_card", "cash", "check", "wire_transfer", "other"]
+    if 'payment_method' in data:
+        payment_method = data['payment_method'].lower()
+        if payment_method not in valid_payment_methods:
+            errors['payment_method'] = f"Payment method must be one of: {', '.join(valid_payment_methods)}"
+    
+    # Validate category - case insensitive
+    valid_categories = ["office_supplies", "travel", "meals", "utilities", "software", "hardware", "other"]
+    if 'category' in data:
+        category = data['category'].lower()
+        if category not in valid_categories:
+            errors['category'] = f"Category must be one of: {', '.join(valid_categories)}"
+    
+    # Validate status - case insensitive and transitions
+    valid_statuses = ["pending", "approved", "rejected"]
+    if 'status' in data:
+        new_status = data['status'].lower()
+        if new_status not in valid_statuses:
+            errors['status'] = f"Status must be one of: {', '.join(valid_statuses)}"
+        else:
+            # Get current status if updating an existing receipt
+            try:
+                with get_db() as db:
+                    receipt = db.query(Receipt).get(receipt_id)
+                    if receipt:
+                        current_status = receipt.status.lower()
+                        valid_transition = False
+                        
+                        if current_status == 'pending':
+                            valid_transition = new_status in ['approved', 'rejected']
+                        elif current_status == 'approved':
+                            valid_transition = new_status == 'rejected'
+                        elif current_status == 'rejected':
+                            valid_transition = new_status == 'approved'
+                            
+                        if not valid_transition:
+                            errors['status'] = f"Invalid status transition from {current_status} to {new_status}"
+            except Exception as e:
+                logger.error(f"Error checking status transition: {str(e)}")
+    
+    return errors
 
 @api_bp.route('/upload', methods=['POST'])
 def upload_file():
@@ -84,7 +169,8 @@ def upload_file():
                     vendor=receipt_data.get('Vendor', ''),
                     amount=receipt_data.get('Amount', '0.00'),
                     date=receipt_data.get('Date', ''),
-                    payment_method=receipt_data.get('Payment_Method', '')
+                    payment_method=receipt_data.get('Payment_Method', ''),
+                    status='pending'
                 )
                 db.add(receipt)
                 db.commit()
@@ -208,40 +294,6 @@ def debug_receipts():
             'db_path': config.db_path
         }), 500
 
-@api_bp.route('/receipts/<int:receipt_id>/update', methods=['PATCH'])
-def update_receipt_fields(receipt_id):
-    """Update specific fields of a receipt and track changes"""
-    try:
-        data = request.json
-        with get_db() as db:
-            receipt = db.query(Receipt).get(receipt_id)
-            if not receipt:
-                return create_error_response('Receipt not found', status_code=404)
-
-            # Track changes for each updated field
-            for field, value in data.items():
-                if hasattr(receipt, field):
-                    old_value = getattr(receipt, field)
-                    
-                    # Update the field
-                    setattr(receipt, field, value)
-                    
-                    # Record the change
-                    change = ReceiptChangeHistory(
-                        receipt_id=receipt_id,
-                        field_name=field,
-                        new_value=str(value),
-                        changed_at=datetime.utcnow()
-                    )
-                    db.add(change)
-            
-            db.commit()
-            return jsonify(receipt.to_dict())
-            
-    except Exception as e:
-        logger.error(f"Failed to update receipt {receipt_id}: {str(e)}")
-        return create_error_response('Failed to update receipt', str(e))
-
 @api_bp.route('/receipts/<int:receipt_id>/history', methods=['GET'])
 def get_receipt_history(receipt_id):
     """Get change history for a receipt"""
@@ -268,3 +320,65 @@ def get_receipt_history(receipt_id):
     except Exception as e:
         logger.error(f"Failed to get history for receipt {receipt_id}: {str(e)}")
         return create_error_response('Failed to fetch receipt history', str(e))
+
+@api_bp.route('/receipts/<int:receipt_id>', methods=['PATCH'])
+@validate_request
+def update_receipt_fields(receipt_id):
+    """Update receipt fields with validation and audit logging"""
+    data = request.get_json()
+    
+    # Validate input data
+    validation_errors = validate_field_values(data)
+    if validation_errors:
+        return create_error_response(
+            'Invalid field values',
+            validation_errors,
+            status_code=HTTPStatus.BAD_REQUEST
+        )
+    
+    try:
+        with get_db() as db:
+            receipt = db.query(Receipt).get(receipt_id)
+            if not receipt:
+                return create_error_response(
+                    'Receipt not found',
+                    status_code=HTTPStatus.NOT_FOUND
+                )
+            
+            # Track changes and update fields
+            updated_fields = {}
+            for field in ['vendor', 'amount', 'date', 'payment_method', 'category', 'status']:
+                if field in data:
+                    old_value = getattr(receipt, field)
+                    new_value = data[field].lower() if field == 'status' else data[field]
+                    
+                    if old_value != new_value:
+                        # Create change history record
+                        change = ReceiptChangeHistory(
+                            receipt_id=receipt_id,
+                            field_name=field,
+                            new_value=new_value,
+                            changed_at=datetime.utcnow(),
+                            changed_by="system"  # TODO: Replace with actual user ID when auth is implemented
+                        )
+                        db.add(change)
+                        
+                        # Update receipt field
+                        setattr(receipt, field, new_value)
+                        updated_fields[field] = new_value
+            
+            db.commit()
+            return jsonify({
+                "success": True,
+                "receipt_id": receipt_id,
+                "updated_fields": updated_fields,
+                "updated_at": datetime.utcnow().isoformat()
+            }), HTTPStatus.OK
+            
+    except Exception as e:
+        logger.error(f"Failed to update receipt {receipt_id}: {str(e)}")
+        return create_error_response(
+            'Failed to update receipt',
+            str(e),
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR
+        )

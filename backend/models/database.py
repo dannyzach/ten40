@@ -52,6 +52,7 @@ class Receipt(Base):
     payment_method = Column(String)
     category = Column(String)  # Back to String to handle 'Missing'
     content = Column(JSON, nullable=False)
+    status = Column(String(20), nullable=False, default='pending')
     
     # Relationship to change history
     changes = relationship("ReceiptChangeHistory", back_populates="receipt")

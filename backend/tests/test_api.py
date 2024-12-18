@@ -2,6 +2,7 @@ import pytest
 import io
 from PIL import Image, ImageDraw
 import json
+from datetime import datetime, timedelta
 
 def create_test_receipt_image():
     """Create a test receipt image"""
@@ -109,3 +110,133 @@ def test_delete_receipt_unit(client):
     # Verify deletion
     response = client.get(f'/api/receipts/{receipt_id}')
     assert response.status_code == 404
+
+def test_update_receipt_validation(client):
+    """Test field validation rules"""
+    receipt_id = test_upload_receipt_unit(client)  # Create test receipt first
+    
+    # Test invalid vendor
+    response = client.patch(f'/api/receipts/{receipt_id}', json={
+        'vendor': 'x' * 101  # Too long
+    })
+    assert response.status_code == 400
+    assert 'error' in response.json
+    assert 'details' in response.json
+    assert 'vendor' in response.json['details']
+    
+    # Test invalid amount
+    response = client.patch(f'/api/receipts/{receipt_id}', json={
+        'amount': '1000000.00'  # Too large
+    })
+    assert response.status_code == 400
+    assert 'error' in response.json
+    assert 'details' in response.json
+    assert 'amount' in response.json['details']
+    
+    # Test future date
+    future_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+    response = client.patch(f'/api/receipts/{receipt_id}', json={
+        'date': future_date
+    })
+    assert response.status_code == 400
+    assert 'error' in response.json
+    assert 'details' in response.json
+    assert 'date' in response.json['details']
+    
+    # Test invalid status
+    response = client.patch(f'/api/receipts/{receipt_id}', json={
+        'status': 'invalid_status'
+    })
+    assert response.status_code == 400
+    assert 'error' in response.json
+    assert 'details' in response.json
+    assert 'status' in response.json['details']
+
+def test_update_receipt_success(client):
+    """Test successful field updates"""
+    receipt_id = test_upload_receipt_unit(client)  # Create test receipt
+    
+    response = client.patch(f'/api/receipts/{receipt_id}', json={
+        'vendor': 'New Vendor',
+        'amount': '150.00',
+        'status': 'approved'
+    })
+    
+    assert response.status_code == 200
+    assert response.json['success'] is True
+    assert 'vendor' in response.json['updated_fields']
+    assert 'amount' in response.json['updated_fields']
+    assert 'status' in response.json['updated_fields']
+    
+    # Verify status change from default 'pending' to 'approved'
+    assert response.json['updated_fields']['status'] == 'approved'
+
+def test_update_receipt_errors(client):
+    """Test various error conditions"""
+    # Test non-existent receipt
+    response = client.patch('/api/receipts/99999', json={
+        'vendor': 'New Vendor'
+    })
+    assert response.status_code == 404
+    assert 'error' in response.json
+    
+    # Test non-JSON request
+    receipt_id = test_upload_receipt_unit(client)
+    response = client.patch(f'/api/receipts/{receipt_id}', data='not json')
+    assert response.status_code == 400
+    assert 'error' in response.json
+
+def test_partial_update_receipt(client):
+    """Test updating subset of fields"""
+    receipt_id = test_upload_receipt_unit(client)
+    
+    # Verify initial status is 'pending'
+    response = client.get(f'/api/receipts/{receipt_id}')
+    assert response.status_code == 200
+    assert response.json['status'] == 'pending'
+    
+    # Update only status
+    response = client.patch(f'/api/receipts/{receipt_id}', json={
+        'status': 'approved'
+    })
+    
+    assert response.status_code == 200
+    assert len(response.json['updated_fields']) == 1
+    assert response.json['updated_fields']['status'] == 'approved'
+
+def test_status_transitions(client):
+    """Test status transition rules"""
+    receipt_id = test_upload_receipt_unit(client)
+    
+    # Verify initial status is 'pending'
+    response = client.get(f'/api/receipts/{receipt_id}')
+    assert response.status_code == 200
+    assert response.json['status'] == 'pending'
+    
+    # Valid transition: pending → approved
+    response = client.patch(f'/api/receipts/{receipt_id}', json={
+        'status': 'APPROVED'  # Test case insensitive
+    })
+    assert response.status_code == 200
+    assert response.json['updated_fields']['status'] == 'approved'
+    
+    # Invalid transition: approved → pending
+    response = client.patch(f'/api/receipts/{receipt_id}', json={
+        'status': 'pending'
+    })
+    assert response.status_code == 400
+    assert 'status' in response.json['details']
+    
+    # Valid transition: approved → rejected
+    response = client.patch(f'/api/receipts/{receipt_id}', json={
+        'status': 'rejected'
+    })
+    assert response.status_code == 200
+    assert response.json['updated_fields']['status'] == 'rejected'
+    
+    # Valid transition: rejected → approved
+    response = client.patch(f'/api/receipts/{receipt_id}', json={
+        'status': 'approved'
+    })
+    assert response.status_code == 200
+    assert response.json['updated_fields']['status'] == 'approved'
