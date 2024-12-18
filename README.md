@@ -413,3 +413,164 @@ Currently using CORS for security. Future versions will implement JWT authentica
 
 ### API Versioning
 API version is currently v1 (implicit). Future versions will use explicit versioning in the URL path.
+```
+
+## Testing
+
+### Test Structure
+```
+backend/tests/
+├── __init__.py           # Test initialization and logging setup
+├── base.py              # Base test class with common utilities
+├── conftest.py          # pytest fixtures and configuration
+├── test_api.py          # Unit tests for API endpoints
+├── test_api_integration.py  # Integration tests
+├── test_migrations.py   # Database migration tests
+├── test_receipt_updates.py  # Receipt update functionality tests
+└── test_upload.py       # File upload tests
+```
+
+### Test Configuration
+- Uses SQLite in-memory database for tests
+- Separate test upload directory
+- Custom test configuration in `test_config.py`
+- Comprehensive logging setup for debugging
+
+### Running Tests
+
+```bash
+# Run all tests
+python -m pytest
+
+# Run with coverage report
+python -m pytest --cov=backend
+
+# Run specific test file
+python -m pytest backend/tests/test_api.py
+
+# Run with detailed output
+python -m pytest -v
+
+# Run with logging output
+python -m pytest --log-cli-level=DEBUG
+```
+
+### Test Categories
+
+#### Unit Tests (`test_api.py`)
+- Tests individual API endpoints
+- Mocked dependencies
+- Validates request/response formats
+- Tests error handling
+```python
+def test_upload_receipt_unit(client):
+    """Unit test for receipt upload endpoint"""
+    test_image = create_test_receipt_image()
+    response = client.post(
+        '/api/upload',
+        data={'file': (test_image, 'test_receipt.png', 'image/png')}
+    )
+    assert response.status_code == 200
+```
+
+#### Integration Tests (`test_api_integration.py`)
+- End-to-end testing
+- Real database interactions
+- File system operations
+- OCR service integration
+```python
+def test_upload_receipt(self):
+    """Test complete upload flow with OCR"""
+    test_image = self.create_test_image()
+    response = requests.post(
+        f'{self.BASE_URL}/upload',
+        files={'file': ('test.png', test_image, 'image/png')}
+    )
+    self.assertEqual(response.status_code, 200)
+```
+
+#### Migration Tests (`test_migrations.py`)
+- Validates database schema changes
+- Tests default values
+- Ensures backward compatibility
+```python
+def test_status_column_exists():
+    inspector = inspect(engine)
+    columns = [col['name'] for col in inspector.get_columns('receipts')]
+    assert 'status' in columns
+```
+
+#### Update Tests (`test_receipt_updates.py`)
+- Tests document modification
+- Validates field updates
+- Tests change history tracking
+```python
+def test_update_receipt_fields(client):
+    """Test updating receipt fields"""
+    update_data = {
+        "vendor": "New Vendor",
+        "amount": "25.50",
+        "category": "Office expenses"
+    }
+    response = client.patch(f'/api/receipts/{receipt_id}/update', 
+                          json=update_data)
+    assert response.status_code == 200
+```
+
+### Test Fixtures
+
+```python
+@pytest.fixture(scope='session')
+def engine():
+    """Create test database engine"""
+    return create_engine('sqlite:///:memory:', echo=False)
+
+@pytest.fixture
+def db_session(engine, tables):
+    """Create a new database session for a test"""
+    connection = engine.connect()
+    transaction = connection.begin()
+    Session = sessionmaker(bind=connection)
+    session = Session()
+    yield session
+    session.close()
+```
+
+### Test Data Generation
+
+The tests include utilities for generating test data:
+- `create_test_receipt_image()`: Creates test receipt images
+- `create_test_data()`: Generates sample database records
+- Mock OCR responses for consistent testing
+
+### Test Best Practices
+
+1. **Isolation**
+   - Each test runs in isolation
+   - Database is reset between tests
+   - Test uploads are cleaned up
+
+2. **Comprehensive Coverage**
+   - API endpoints
+   - Database operations
+   - File handling
+   - Error scenarios
+   - Edge cases
+
+3. **Performance**
+   - Fast unit tests
+   - Selective integration tests
+   - In-memory database
+   - Minimal external dependencies
+
+4. **Maintainability**
+   - Clear test organization
+   - Shared fixtures and utilities
+   - Consistent naming conventions
+   - Detailed documentation
+
+5. **CI/CD Integration**
+   - Tests run on every push
+   - Coverage reports
+   - Performance metrics
+   - Integration test gates
