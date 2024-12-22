@@ -94,7 +94,7 @@ class TestReceiptAPI(unittest.TestCase):
         update_data = {
             'vendor': 'Updated Store',
             'amount': '99.99',
-            'category': 'Test Category'
+            'category': 'office_supplies'
         }
         
         response = requests.patch(
@@ -107,7 +107,7 @@ class TestReceiptAPI(unittest.TestCase):
         
         # Verify updates were applied
         for field, value in update_data.items():
-            self.assertEqual(data[field], value)
+            self.assertEqual(data['updated_fields'][field], value)
 
     def test_delete_receipt(self):
         """Test delete receipt endpoint"""

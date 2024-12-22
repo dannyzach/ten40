@@ -53,9 +53,12 @@ class Receipt(Base):
     category = Column(String)  # Back to String to handle 'Missing'
     content = Column(JSON, nullable=False)
     status = Column(String(20), nullable=False, default='pending')
-    
     # Relationship to change history
-    changes = relationship("ReceiptChangeHistory", back_populates="receipt")
+    changes = relationship(
+    "ReceiptChangeHistory",
+    back_populates="receipt",
+    cascade="all, delete-orphan"
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -76,10 +79,11 @@ class Receipt(Base):
             content_lower = {k.lower(): v for k, v in flattened.items()}
             
             # Set fields directly from content, defaulting to 'Missing'
-            self.vendor = content_lower.get('vendor') or 'Missing'
-            self.amount = content_lower.get('amount') or 'Missing'
-            self.date = content_lower.get('date') or 'Missing'
-            self.payment_method = content_lower.get('payment_method') or 'Missing'
+
+            self.vendor = content_lower.get('vendor') or self.vendor or 'Missing'
+            self.amount = content_lower.get('amount') or self.amount or 'Missing'
+            self.date = content_lower.get('date') or self.date or 'Missing'
+            self.payment_method = content_lower.get('payment_method') or self.payment_method or 'Missing'
             
             # Handle category
             if not self.category:
@@ -103,7 +107,8 @@ class ReceiptChangeHistory(Base):
     __tablename__ = 'receipt_change_history'
 
     id = Column(Integer, primary_key=True)
-    receipt_id = Column(Integer, ForeignKey('receipts.id'), nullable=False)
+    #receipt_id = Column(Integer, ForeignKey('receipts.id'), nullable=False)
+    receipt_id = Column(Integer, ForeignKey('receipts.id', ondelete="CASCADE"), nullable=False)
     field_name = Column(String, nullable=False)
     new_value = Column(String, nullable=False)
     changed_at = Column(DateTime, default=datetime.utcnow, nullable=False)

@@ -1,6 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from api.routes import api_bp
+# from backend.api.routes import api_bp # Import the API blueprint
 from config import config
 import logging
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -12,6 +13,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
+app.register_blueprint(api_bp, url_prefix='/api') # Register API blueprint with /api prefix
 
 # Configure CORS with timeout
 CORS(app, resources={
@@ -31,7 +33,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['PROPAGATE_EXCEPTIONS'] = True  # Enable full error reporting
 
 # Register blueprints
-app.register_blueprint(api_bp, url_prefix='/api')
+# app.register_blueprint(api_bp, url_prefix='/api')
 
 @app.route('/api/health')
 def health_check():

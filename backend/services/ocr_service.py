@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 # Initialize the OpenAI client with error handling
 try:
     client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -16,8 +18,6 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize OpenAI client: {str(e)}")
     raise
-
-logger = logging.getLogger(__name__)
 
 def clean_json_text(json_text: str) -> str:
     """Clean and format JSON text for parsing"""
@@ -49,19 +49,17 @@ class OCRService:
     def extract_receipt_data(image_path):
         """Extract receipt data using gpt-4o-mini"""
         try:
-            logger.info(f"Starting OCR process for image: {image_path}")
+            logger.info(f"Processing receipt image: {image_path}")
             
             # Read image file and convert to base64
             try:
                 with open(image_path, 'rb') as f:
                     image_bytes = f.read()
                 base64_image = base64.b64encode(image_bytes).decode('utf-8')
-                logger.info(f"Successfully read image file: {len(image_bytes)} bytes")
             except Exception as e:
                 logger.error(f"Failed to read image file: {str(e)}")
                 raise
 
-            logger.info("Calling gpt-4o-mini API...")
             try:
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
@@ -107,29 +105,21 @@ Capture every line of text, including store details, items, prices, subtotals, t
                     max_tokens=1000
                 )
                 
-                logger.info("Successfully received response from gpt-4o-mini")
-                
                 content = response.choices[0].message.content
-                logger.info(f"Raw content from OCR: {content}\n")
 
                 try:
                     # Clean and format the entire response
                     cleaned_json = clean_json_text(content)
-                    logger.debug(f"Attempting to parse JSON: {cleaned_json}\n")
-                    
                     data = json.loads(cleaned_json)
-                    logger.info(f"Successfully parsed JSON: {data}\n")
                     return {'content': data}
                 except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse JSON: {str(e)}")
-                    logger.error(f"Raw content: {content}")
-                    logger.error(f"Cleaned content: {cleaned_json}")
-                    return {'content': f"Error parsing JSON: {str(e)}", 'raw_content': content, 'cleaned_content': cleaned_json}
+                    logger.error(f"Failed to parse OCR response: {str(e)}")
+                    return {'content': f"Error parsing JSON: {str(e)}"}
 
             except Exception as e:
-                logger.error(f"Failed to call Vision API: {str(e)}")
+                logger.error(f"Failed to process image with Vision API: {str(e)}")
                 return {'content': f"Vision API Error: {str(e)}"}
             
         except Exception as e:
             logger.error(f"OCR process failed: {str(e)}")
-            return {'content': f"OCR Error: {str(e)}"} 
+            return {'content': f"OCR Error: {str(e)}"}
