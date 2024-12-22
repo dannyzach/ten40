@@ -100,7 +100,8 @@ class Receipt(Base):
             'date': self.date or 'Missing',
             'payment_method': self.payment_method or 'Missing',
             'category': self.category or 'Other',
-            'content': self.content
+            'content': self.content,
+            'status': self.status
         }
 
 class ReceiptChangeHistory(Base):

@@ -12,6 +12,8 @@ from config import config
 from functools import wraps
 from http import HTTPStatus
 from decimal import Decimal, InvalidOperation
+import time
+from .errors import APIError
 
 # Configure logging
 logger = logging.getLogger('api.routes')
@@ -28,23 +30,15 @@ def verify_image(filepath):
         logger.error(f"Image verification failed: {str(e)}")
         return False
 
-def create_error_response(message, details=None, status_code=500):
-    """Create a standardized error response"""
-    response = {'error': message}
-    if details:
-        response['details'] = str(details)
-    return jsonify(response), status_code
-
 def validate_request(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not request.is_json:
-            return jsonify({
-                "error": {
-                    "code": "VALIDATION_ERROR",
-                    "message": "Request must be JSON"
-                }
-            }), HTTPStatus.BAD_REQUEST
+            raise APIError(
+                "Request must be JSON",
+                status_code=400,
+                details={'content_type': request.content_type}
+            )
         return f(*args, **kwargs)
     return decorated_function
 
@@ -122,13 +116,11 @@ def upload_file():
     logger.info("Received upload request")
     try:
         if 'file' not in request.files:
-            logger.error("No file part in request")
-            return create_error_response('No file part', status_code=400)
+            raise APIError("No file part in request", status_code=400)
         
         file = request.files['file']
         if file.filename == '':
-            logger.error("No selected file")
-            return create_error_response('No selected file', status_code=400)
+            raise APIError("No selected file", status_code=400)
         
         logger.info(f"Processing file: {file.filename}")
         
@@ -143,8 +135,7 @@ def upload_file():
         
         # Verify image
         if not verify_image(filepath):
-            logger.error("Failed to verify saved image")
-            return create_error_response('Failed to save image')
+            raise APIError("Failed to verify saved image", status_code=400)
         
         try:
             # Process with OCR
@@ -175,7 +166,6 @@ def upload_file():
                 db.add(receipt)
                 db.commit()
                 
-                # Return the created receipt
                 return jsonify(receipt.to_dict())
                 
         except Exception as e:
@@ -185,73 +175,62 @@ def upload_file():
             except:
                 pass
             logger.error(f"Processing error: {str(e)}")
-            return create_error_response('Failed to process receipt', str(e))
+            raise APIError("Failed to process receipt", status_code=500, details={'error': str(e)})
         
+    except APIError:
+        raise
     except Exception as e:
         logger.error(f"Upload error: {str(e)}")
-        return create_error_response('Failed to upload receipt', str(e))
+        raise APIError("Failed to upload receipt", status_code=500, details={'error': str(e)})
 
 @api_bp.route('/receipts', methods=['GET'])
 def get_receipts():
-    """Get all receipts"""
+    start_time = time.time()
     try:
         with get_db() as db:
             receipts = db.query(Receipt).all()
             return jsonify([r.to_dict() for r in receipts])
     except Exception as e:
         logger.error(f"Failed to get receipts: {str(e)}")
-        return jsonify({
-            'error': 'Failed to fetch receipts',
-            'details': str(e)
-        }), 500
+        raise APIError("Failed to fetch receipts", status_code=500, details={'error': str(e)})
+    finally:
+        execution_time = time.time() - start_time
+        logger.info(f"Execution time for get_receipts: {execution_time:.2f} seconds")
 
 @api_bp.route('/receipts/<int:receipt_id>', methods=['GET'])
 def get_receipt(receipt_id):
-    """Get a single receipt"""
+    """Get a single receipt by ID"""
     try:
         with get_db() as db:
             receipt = db.query(Receipt).get(receipt_id)
             if not receipt:
-                return create_error_response('Receipt not found', status_code=404)
-            
-            return jsonify({
-                'id': receipt.id,
-                'image_path': receipt.image_path,
-                'vendor': receipt.vendor,
-                'amount': receipt.amount,
-                'date': receipt.date,
-                'payment_method': receipt.payment_method,
-                'category': receipt.category,
-                'content': receipt.content,
-                'status': receipt.status  # Add status to response
-            })
+                raise APIError("Receipt not found", status_code=404)
+            return jsonify(receipt.to_dict())
+    except APIError:
+        raise
     except Exception as e:
         logger.error(f"Failed to get receipt {receipt_id}: {str(e)}")
-        return create_error_response('Failed to fetch receipt', str(e))
+        raise APIError("Failed to fetch receipt", status_code=500)
 
 @api_bp.route('/receipts/<int:receipt_id>/update', methods=['PATCH'])
 @validate_request
 def update_receipt_fields(receipt_id):
-    """Update receipt fields with validation and audit logging."""
     data = request.get_json()
 
     # Validate input data
     validation_errors = validate_field_values(data, receipt_id)
     if validation_errors:
-        return create_error_response(
-            'Invalid field values',
-            validation_errors,
-            status_code=HTTPStatus.BAD_REQUEST
+        raise APIError(
+            "Invalid field values",
+            status_code=400,
+            details=validation_errors
         )
 
     try:
         with get_db() as db:
             receipt = db.query(Receipt).get(receipt_id)
             if not receipt:
-                return create_error_response(
-                    'Receipt not found',
-                    status_code=HTTPStatus.NOT_FOUND
-                )
+                raise APIError("Receipt not found", status_code=404)
 
             # Track changes and update fields
             updated_fields = {}
@@ -300,24 +279,24 @@ def update_receipt_fields(receipt_id):
                 "receipt": receipt_data,
             }), HTTPStatus.OK
 
+    except APIError:
+        raise
     except Exception as e:
         logger.error(f"Failed to update receipt {receipt_id}: {str(e)}")
-        return create_error_response(
-            'Failed to update receipt',
-            str(e),
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR
+        raise APIError(
+            "Failed to update receipt",
+            status_code=500,
+            details={'error': str(e)}
         )
-
 
 @api_bp.route('/receipts/<int:receipt_id>', methods=['DELETE'])
 def delete_receipt(receipt_id):
-    """Delete receipt and associated image"""
+    """Delete a receipt"""
     try:
         with get_db() as db:
             receipt = db.query(Receipt).get(receipt_id)
             if not receipt:
-                logger.warning(f"Receipt not found: {receipt_id}")
-                return jsonify({'error': 'Receipt not found'}), 404
+                raise APIError("Receipt not found", status_code=404)
 
             # Delete image file
             try:
@@ -327,15 +306,19 @@ def delete_receipt(receipt_id):
                     logger.info(f"Deleted image file: {image_path}")
             except Exception as e:
                 logger.error(f"Failed to delete image: {str(e)}")
+                raise APIError("Failed to delete image file", status_code=500)
 
             # Delete database record
             db.delete(receipt)
             logger.info(f"Deleted receipt: {receipt_id}")
             
             return jsonify({'message': 'Receipt deleted successfully'})
+            
+    except APIError:
+        raise
     except Exception as e:
         logger.error(f"Failed to delete receipt {receipt_id}: {str(e)}")
-        return jsonify({'error': 'Database error'}), 500
+        raise APIError("Failed to delete receipt", status_code=500)
 
 @api_bp.route('/images/<path:filename>')
 def get_image(filename):
@@ -344,13 +327,12 @@ def get_image(filename):
 
 @api_bp.route('/receipts/<int:receipt_id>/history', methods=['GET'])
 def get_receipt_history(receipt_id):
-    """Get change history for a receipt"""
     try:
         with get_db() as db:
             # Verify receipt exists
             receipt = db.query(Receipt).get(receipt_id)
             if not receipt:
-                return create_error_response('Receipt not found', status_code=404)
+                raise APIError("Receipt not found", status_code=404)
 
             # Get changes ordered by timestamp
             changes = db.query(ReceiptChangeHistory)\
@@ -365,6 +347,77 @@ def get_receipt_history(receipt_id):
                 'changed_by': change.changed_by
             } for change in changes])
 
+    except APIError:
+        raise
     except Exception as e:
         logger.error(f"Failed to get history for receipt {receipt_id}: {str(e)}")
-        return create_error_response('Failed to fetch receipt history', str(e))
+        raise APIError("Failed to fetch receipt history", status_code=500, details={'error': str(e)})
+
+@api_bp.route('/process', methods=['POST'])
+def process_document():
+    try:
+        if not request.files:
+            raise APIError("No file provided", status_code=400)
+
+        file = request.files.get('file')
+        if not file:
+            raise APIError("File field is required", status_code=400)
+
+        # Validate file type
+        if not allowed_file(file.filename):
+            raise APIError(
+                "Invalid file type", 
+                status_code=400, 
+                details={'allowed_types': ALLOWED_EXTENSIONS}
+            )
+
+        # Process the document
+        result = ocr_service.process(file)
+        
+        logger.info("Document processed successfully", extra={
+            'filename': file.filename,
+            'result_length': len(result)
+        })
+        
+        return jsonify({
+            'success': True,
+            'data': result
+        })
+
+    except OCRServiceError as e:
+        raise APIError(
+            "OCR processing failed",
+            status_code=422,
+            details={'ocr_error': str(e)}
+        )
+
+@api_bp.route('/categorize', methods=['POST'])
+def categorize_text():
+    try:
+        data = request.get_json()
+        if not data:
+            raise APIError("No JSON data provided", status_code=400)
+
+        text = data.get('text')
+        if not text:
+            raise APIError("Text field is required", status_code=400)
+
+        # Categorize the text
+        categories = categorization_service.categorize(text)
+        
+        logger.info("Text categorized successfully", extra={
+            'text_length': len(text),
+            'categories_count': len(categories)
+        })
+        
+        return jsonify({
+            'success': True,
+            'categories': categories
+        })
+
+    except CategorizationError as e:
+        raise APIError(
+            "Categorization failed",
+            status_code=422,
+            details={'categorization_error': str(e)}
+        )

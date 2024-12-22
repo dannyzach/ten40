@@ -5,6 +5,8 @@ from api.routes import api_bp
 from config import config
 import logging
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.exceptions import HTTPException
+from api.errors import APIError, handle_api_error, handle_http_error, handle_generic_error
 
 # Configure logging
 logging.basicConfig(
@@ -32,6 +34,11 @@ app.config['UPLOAD_TIMEOUT'] = 120
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['PROPAGATE_EXCEPTIONS'] = True  # Enable full error reporting
 
+# Register error handlers
+app.register_error_handler(APIError, handle_api_error)
+app.register_error_handler(HTTPException, handle_http_error)
+app.register_error_handler(Exception, handle_generic_error)
+
 # Register blueprints
 # app.register_blueprint(api_bp, url_prefix='/api')
 
@@ -39,6 +46,17 @@ app.config['PROPAGATE_EXCEPTIONS'] = True  # Enable full error reporting
 def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'ok'})
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Log the exception details
+    app.logger.error(f"Unhandled Exception: {str(e)}", exc_info=True)
+    
+    # Return a sanitized error response
+    response = {
+        "error": "An unexpected error occurred. Please try again later."
+    }
+    return jsonify(response), 500
 
 if __name__ == '__main__':
     app.run(

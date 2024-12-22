@@ -44,6 +44,8 @@ def test_update_invalid_receipt(client):
     """Test updating non-existent receipt"""
     response = client.patch('/api/receipts/99999/update', json={"vendor": "Test"})
     assert response.status_code == 404
+    assert response.json['error'] == True
+    assert response.json['message'] == "Receipt not found"
 
 def test_partial_update_receipt(client):
     """Test updating only some fields of a receipt"""
@@ -92,6 +94,10 @@ def test_update_invalid_fields(client):
     response = client.patch(f'/api/receipts/{receipt_id}/update', 
                           json={"amount": "invalid"})
     assert response.status_code == 400
+    assert response.json['error'] == True
+    assert 'message' in response.json
+    assert 'details' in response.json
+    assert 'amount' in response.json['details']
 
     # Clean up
     with get_db() as db:

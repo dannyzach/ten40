@@ -127,7 +127,11 @@ class TestReceiptAPI(unittest.TestCase):
         # Test 404 on non-existent receipt
         response = requests.get(f'{self.BASE_URL}/receipts/99999')
         self.assertEqual(response.status_code, 404)
+        self.assertTrue(response.json()['error'])
+        self.assertEqual(response.json()['message'], "Receipt not found")
         
         # Test 400 on upload with no file
         response = requests.post(f'{self.BASE_URL}/upload', files={})
-        self.assertEqual(response.status_code, 400) 
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(response.json()['error'])
+        self.assertIn('message', response.json()) 

@@ -113,24 +113,28 @@ def test_update_receipt_unit(client):
 def test_delete_receipt_unit(client):
     """Unit test for delete receipt endpoint"""
     receipt_id = test_upload_receipt_unit(client)
-    
+
+    # Delete the receipt
     response = client.delete(f'/api/receipts/{receipt_id}')
     assert response.status_code == 200
-    
-    # Verify deletion
+
+    # Verify deletion by checking that the receipt no longer exists
     response = client.get(f'/api/receipts/{receipt_id}')
-    assert response.status_code == 404
+    assert response.status_code == 404  # Now we expect a 404 status code
+    assert response.json['error'] == True
+    assert response.json['message'] == "Receipt not found"
 
 def test_update_receipt_validation(client):
     """Test field validation rules"""
-    receipt_id = test_upload_receipt_unit(client)  # Create test receipt first
+    receipt_id = test_upload_receipt_unit(client)
     
     # Test invalid vendor
     response = client.patch(f'/api/receipts/{receipt_id}/update', json={
         'vendor': 'x' * 101  # Too long
     })
     assert response.status_code == 400
-    assert 'error' in response.json
+    assert response.json['error'] == True
+    assert 'message' in response.json
     assert 'details' in response.json
     assert 'vendor' in response.json['details']
     
@@ -188,13 +192,15 @@ def test_update_receipt_errors(client):
         'vendor': 'New Vendor'
     })
     assert response.status_code == 404
-    assert 'error' in response.json
+    assert response.json['error'] == True
+    assert response.json['message'] == "Receipt not found"
     
     # Test non-JSON request
     receipt_id = test_upload_receipt_unit(client)
     response = client.patch(f'/api/receipts/{receipt_id}/update', data='not json')
     assert response.status_code == 400
-    assert 'error' in response.json
+    assert response.json['error'] == True
+    assert 'message' in response.json
 
 def test_partial_update_receipt(client):
     """Test updating subset of fields"""

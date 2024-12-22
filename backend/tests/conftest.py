@@ -6,6 +6,7 @@ import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from flask import Flask, g
+from werkzeug.exceptions import HTTPException
 
 # Load environment variables
 load_dotenv()
@@ -65,9 +66,14 @@ def client(engine, tables, db_session):
     def before_request():
         g.db_session = db_session
     
-    # app.register_blueprint(api_bp)
+    # Register error handlers
+    from api.errors import APIError, handle_api_error, handle_http_error, handle_generic_error
+    app.register_error_handler(APIError, handle_api_error)
+    app.register_error_handler(HTTPException, handle_http_error)
+    app.register_error_handler(Exception, handle_generic_error)
+    
+    # Register blueprint
     app.register_blueprint(api_bp, url_prefix='/api')
-
     
     with app.test_client() as client:
         with app.app_context():
