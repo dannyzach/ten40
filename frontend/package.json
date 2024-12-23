@@ -14,6 +14,8 @@
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.16.11",
     "@mui/material": "^5.x.x",
+    "@mui/x-date-pickers": "^6.18.6",
+    "date-fns": "^2.30.0",
     "next": "^14.x.x",
     "react": "^18.x.x",
     "react-dom": "^18.x.x",

@@ -28,85 +28,136 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { DocumentType, DocumentStatus, Document } from '@/types';
+import { 
+    DocumentType, 
+    DocumentStatus, 
+    Document,
+    W2Document,
+    Form1099Document,
+    ExpenseDocument,
+    DonationDocument
+} from '@/types';
 import { documentsApi } from '@/lib/api/documents';
 import { useRouter } from 'next/router';
 import { ImageViewer } from '@/components/ImageViewer';
-import { DocumentFilter, W2Filter, Form1099Filter, ExpenseFilter, DonationFilter } from '@/types/filters';
+import { DocumentFilter } from '@/types/filters';
 import { DocumentFilters } from './DocumentFilters';
 import { useSearch } from '@/contexts/SearchContext';
+import { EditableCell } from './EditableCell';
+import { updateDocument } from '@/lib/api/documents';
+import { format, parse, isValid } from 'date-fns';
+import { enUS } from 'date-fns/locale';
 
-interface Column {
-    id: keyof Document | string;
-    label: string;
-    minWidth?: number;
-    align?: 'left' | 'right' | 'center';
-    format?: (value: any) => string;
+type ColumnId<T> = keyof T;
+
+interface Column<T extends Document = Document> {
+  id: ColumnId<T>;
+  label: string;
+  minWidth?: number;
+  align?: 'left' | 'right' | 'center';
+  format?: (value: any) => string;
+  editable?: boolean;
+  editType?: 'text' | 'date' | 'amount' | 'select';
+  options?: string[];
 }
 
-// Column definitions for each document type
-const COLUMNS: Record<DocumentType, Column[]> = {
-    'W-2': [
-        { id: 'employer', label: 'Employer', minWidth: 170 },
-        { 
-            id: 'wages', 
-            label: 'Wages', 
-            minWidth: 100, 
-            align: 'right',
-            format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-        },
-        { 
-            id: 'fedWithholding', 
-            label: 'Fed Withholding', 
-            minWidth: 130, 
-            align: 'right',
-            format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-        },
-        { id: 'status', label: 'Status', minWidth: 100, align: 'center' }
-    ],
-    '1099': [
-        { id: 'employer', label: 'Payer', minWidth: 170 },
-        { 
-            id: 'nonEmpCompensation', 
-            label: 'Amount', 
-            minWidth: 100, 
-            align: 'right',
-            format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-        },
-        { id: 'status', label: 'Status', minWidth: 100, align: 'center' }
-    ],
-    'Expenses': [
-        { id: 'vendor', label: 'Vendor', minWidth: 170 },
-        { 
-            id: 'amount', 
-            label: 'Amount', 
-            minWidth: 100, 
-            align: 'right',
-            format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-        },
-        { 
-            id: 'date', 
-            label: 'Date', 
-            minWidth: 100,
-            format: (value: string) => new Date(value).toLocaleDateString()
-        },
-        { id: 'payment_method', label: 'Payment Method', minWidth: 130 },
-        { id: 'expenseType', label: 'Expense Category', minWidth: 150 },
-        { id: 'status', label: 'Status', minWidth: 100, align: 'center' }
-    ],
-    'Donations': [
-        { id: 'charityName', label: 'Charity', minWidth: 170 },
-        { 
-            id: 'amount', 
-            label: 'Amount', 
-            minWidth: 100, 
-            align: 'right',
-            format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-        },
-        { id: 'donationType', label: 'Type', minWidth: 100 },
-        { id: 'date', label: 'Date', minWidth: 100 },
-        { id: 'status', label: 'Status', minWidth: 100, align: 'center' }
-    ],
+type DocumentColumns = {
+  'W-2': Column<W2Document>[];
+  '1099': Column<Form1099Document>[];
+  'Expenses': Column<ExpenseDocument>[];
+  'Donations': Column<DonationDocument>[];
+};
+
+const COLUMNS: DocumentColumns = {
+  'W-2': [
+    { id: 'employer', label: 'Employer', minWidth: 170 },
+    { 
+      id: 'wages',
+      label: 'Wages',
+      minWidth: 100,
+      align: 'right',
+      format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    },
+    { 
+      id: 'fedWithholding',
+      label: 'Fed Withholding',
+      minWidth: 130,
+      align: 'right',
+      format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    },
+    { id: 'status', label: 'Status', minWidth: 100, align: 'center' }
+  ],
+  '1099': [
+    { id: 'employer', label: 'Payer', minWidth: 170 },
+    { 
+      id: 'nonEmpCompensation',
+      label: 'Amount',
+      minWidth: 100,
+      align: 'right',
+      format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    },
+    { id: 'status', label: 'Status', minWidth: 100, align: 'center' }
+  ],
+  'Expenses': [
+    { 
+      id: 'vendor',
+      label: 'Vendor',
+      minWidth: 170,
+      editable: true,
+      editType: 'text'
+    },
+    { 
+      id: 'amount',
+      label: 'Amount',
+      minWidth: 100,
+      align: 'right',
+      editable: true,
+      editType: 'amount',
+      format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    },
+    { 
+      id: 'date',
+      label: 'Date',
+      minWidth: 100,
+      editable: true,
+      editType: 'date',
+      format: (value: string) => new Date(value).toLocaleDateString()
+    },
+    { 
+      id: 'payment_method',
+      label: 'Payment Method',
+      minWidth: 130,
+      editable: true,
+      editType: 'select',
+      options: ['credit_card', 'debit_card', 'cash', 'check', 'other']
+    },
+    { 
+      id: 'expenseType',
+      label: 'Expense Category',
+      minWidth: 150,
+      editable: false
+    },
+    { 
+      id: 'status',
+      label: 'Status',
+      minWidth: 100,
+      align: 'center',
+      editable: false
+    }
+  ],
+  'Donations': [
+    { id: 'charityName', label: 'Charity', minWidth: 170 },
+    { 
+      id: 'amount',
+      label: 'Amount',
+      minWidth: 100,
+      align: 'right',
+      format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    },
+    { id: 'donationType', label: 'Type', minWidth: 100 },
+    { id: 'date', label: 'Date', minWidth: 100 },
+    { id: 'status', label: 'Status', minWidth: 100, align: 'center' }
+  ],
 };
 
 interface DocumentsTableProps {
@@ -205,10 +256,9 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
     const [orderBy, setOrderBy] = useState<string>('');
     const [order, setOrder] = useState<'asc' | 'desc'>('asc');
     const [error, setError] = useState<string | null>(null);
-    const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [availableOptions, setAvailableOptions] = useState<Record<string, string[]>>({});
     const { searchQuery } = useSearch();
-    const [selected, setSelected] = useState<string[]>([]);
+    const [selected, setSelected] = useState<number[]>([]);
     const [deleteSnackbar, setDeleteSnackbar] = useState({
         open: false,
         message: ''
@@ -280,6 +330,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         setError(null);
         try {
             const docs = await documentsApi.getDocuments(type);
+            console.log('DocumentsTable.fetchDocuments: Received documents:', docs);
             setDocuments(docs);
         } catch (error) {
             console.error('Error fetching documents:', error);
@@ -296,12 +347,6 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         } catch (error) {
             console.error('Error approving document:', error);
             // You might want to add error handling UI here
-        }
-    };
-
-    const handleViewReceipt = (document: Document) => {
-        if (document.type === 'Expenses' && document.originalReceipt?.image_path) {
-            setSelectedImage(document.originalReceipt.image_path);
         }
     };
 
@@ -525,7 +570,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                             size="small"
                             onClick={(e) => {
                                 e.stopPropagation(); // Prevent row click
-                                handleViewReceipt(document);
+                                handleEdit(document.id);
                             }}
                         >
                             <VisibilityIcon fontSize="small" />
@@ -579,17 +624,18 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         [getFilteredDocuments, orderBy, order, getSortedDocuments]
     );
 
-    const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.checked) {
-            setSelected(sortedDocuments.map(doc => doc.id));
-        } else {
-            setSelected([]);
+            const newSelected = documents.map(doc => doc.id);
+            setSelected(newSelected);
+            return;
         }
+        setSelected([]);
     };
 
-    const handleSelectOne = (id: string) => {
+    const handleClick = (id: number) => {
         const selectedIndex = selected.indexOf(id);
-        let newSelected: string[] = [];
+        let newSelected: number[] = [];
 
         if (selectedIndex === -1) {
             newSelected = newSelected.concat(selected, id);
@@ -600,7 +646,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         } else if (selectedIndex > 0) {
             newSelected = newSelected.concat(
                 selected.slice(0, selectedIndex),
-                selected.slice(selectedIndex + 1)
+                selected.slice(selectedIndex + 1),
             );
         }
 
@@ -634,6 +680,88 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         } finally {
             setIsDeleting(false);
         }
+    };
+
+    const renderCell = (document: Document, column: Column) => {
+        const value = document[column.id];
+        
+        if (document.type === 'Expenses' && column.editable) {
+            const expenseDoc = document as ExpenseDocument;
+            const columnKey = column.id as keyof ExpenseDocument;
+            
+            // Format the initial value for dates
+            let initialValue = expenseDoc[columnKey];
+            if (column.editType === 'date') {
+                console.log('DocumentsTable.renderCell: Processing date field:', {
+                    originalValue: initialValue,
+                    type: typeof initialValue,
+                    columnKey
+                });
+            }
+            
+            return (
+                <EditableCell
+                    key={column.id}
+                    value={initialValue}
+                    type={column.editType as 'text' | 'date' | 'amount' | 'select'}
+                    options={column.options}
+                    align={column.align}
+                    format={column.format}
+                    onSave={async (newValue: string) => {
+                        try {
+                            console.log('DocumentsTable.onSave: Updating field:', {
+                                documentId: document.id,
+                                field: columnKey,
+                                oldValue: initialValue,
+                                newValue,
+                                type: column.editType
+                            });
+                            
+                            // Format the value based on type before sending to API
+                            const formattedValue = column.editType === 'amount' 
+                                ? parseFloat(newValue.replace(/[^\d.-]/g, ''))
+                                : newValue;
+                            
+                            console.log('DocumentsTable.onSave: Sending to API:', {
+                                documentId: document.id,
+                                updates: { [columnKey]: formattedValue }
+                            });
+                            
+                            const updates = { [columnKey]: formattedValue };
+                            const updatedDoc = await updateDocument(document.id, updates);
+                            
+                            console.log('DocumentsTable.onSave: Received API response:', {
+                                documentId: document.id,
+                                updatedDoc
+                            });
+                            
+                            // Update all fields in the document with the response
+                            setDocuments(prevDocs =>
+                                prevDocs.map(doc =>
+                                    doc.id === document.id 
+                                        ? { ...doc, ...updatedDoc }
+                                        : doc
+                                )
+                            );
+                        } catch (error) {
+                            console.error('DocumentsTable.onSave: Update failed:', {
+                                error,
+                                documentId: document.id,
+                                field: columnKey,
+                                value: newValue
+                            });
+                            throw error;
+                        }
+                    }}
+                />
+            );
+        }
+
+        return (
+            <TableCell key={column.id} align={column.align}>
+                {column.format && value !== undefined ? column.format(value) : value}
+            </TableCell>
+        );
     };
 
     if (loading) {
@@ -688,7 +816,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                 <TableToolbar 
                     type={type}
                     numSelected={selected.length}
-                    onSelectAll={handleSelectAll}
+                    onSelectAll={handleSelectAllClick}
                     onDelete={handleBulkDelete}
                     filters={filters}
                     onFilterChange={onFilterChange}
@@ -729,37 +857,19 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                                     key={document.id}
                                     selected={selected.includes(document.id)}
                                     sx={{ 
-                                        cursor: 'pointer',
                                         '&:hover': {
                                             bgcolor: 'action.hover',
                                         }
                                     }}
-                                    onClick={() => handleViewReceipt(document)}
                                 >
                                     <TableCell padding="checkbox">
                                         <Checkbox
                                             checked={selected.includes(document.id)}
-                                            onChange={() => handleSelectOne(document.id)}
-                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={() => handleClick(document.id)}
                                         />
                                     </TableCell>
-                                    {COLUMNS[type].map((column) => {
-                                        const value = document[column.id as keyof typeof document];
-                                        return (
-                                            <TableCell 
-                                                key={column.id} 
-                                                align={column.align}
-                                            >
-                                                {column.format && value !== undefined
-                                                    ? column.format(value)
-                                                    : value}
-                                            </TableCell>
-                                        );
-                                    })}
-                                    <TableCell 
-                                        align="right"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
+                                    {COLUMNS[type].map((column) => renderCell(document, column))}
+                                    <TableCell align="right">
                                         {renderActions(document)}
                                     </TableCell>
                                 </TableRow>
@@ -775,13 +885,6 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                 onClose={() => setDeleteSnackbar({ ...deleteSnackbar, open: false })}
                 message={deleteSnackbar.message}
             />
-
-            {selectedImage && (
-                <ImageViewer
-                    imagePath={selectedImage}
-                    onClose={() => setSelectedImage(null)}
-                />
-            )}
 
             <Dialog
                 open={showBulkDeleteConfirm}

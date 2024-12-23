@@ -62,11 +62,27 @@ def validate_field_values(data, receipt_id):
     # Validate date
     if 'date' in data:
         try:
+            logger.info(f"Validating date field. Raw value: {data['date']!r}, Type: {type(data['date'])}")
+            
+            if not data['date']:
+                logger.info("Empty date value received")
+                return {'date': "Date cannot be empty"}
+                
             date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+            logger.info(f"Successfully parsed date: {date}")
+            
             if date > datetime.now().date():
-                errors['date'] = "Date cannot be in the future"
-        except ValueError:
-            errors['date'] = "Date must be in YYYY-MM-DD format"
+                logger.error(f"Future date not allowed: {date}")
+                return {'date': "Date cannot be in the future"}
+                
+            logger.info(f"Date validation successful: {date}")
+            
+        except ValueError as e:
+            logger.error(f"Date validation error: {str(e)}, received value: {data['date']!r}, type: {type(data['date'])}")
+            return {'date': "Date must be in YYYY-MM-DD format"}
+        except Exception as e:
+            logger.error(f"Unexpected error validating date: {str(e)}, received value: {data['date']!r}, type: {type(data['date'])}")
+            return {'date': "Invalid date format"}
     
     # Validate payment_method - case insensitive
     valid_payment_methods = ["credit_card", "debit_card", "cash", "check", "wire_transfer", "other"]

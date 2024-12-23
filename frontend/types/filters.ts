@@ -1,57 +1,51 @@
-// Base filter interface
+import { DocumentType } from './index';
+
 export interface BaseFilter {
-    dateRange?: {
-        start?: string;
-        end?: string;
-    };
-    status?: string[];
+  type: DocumentType;
+  status?: string[];
+  dateRange?: {
+    start: string;
+    end: string;
+  };
 }
 
-// W2 specific filters
 export interface W2Filter extends BaseFilter {
-    employer?: string[];
-    wageRange?: {
-        min?: number;
-        max?: number;
-    };
-    withHoldingRange?: {
-        min?: number;
-        max?: number;
-    };
+  type: 'W-2';
+  employer?: string[];
+  wageRange?: {
+    min: number;
+    max: number;
+  };
 }
 
-// 1099 specific filters
 export interface Form1099Filter extends BaseFilter {
-    employer?: string[];
-    amountRange?: {
-        min?: number;
-        max?: number;
-    };
+  type: '1099';
+  employer?: string[];
+  amountRange?: {
+    min: number;
+    max: number;
+  };
 }
 
-// Expense specific filters
 export interface ExpenseFilter extends BaseFilter {
-    vendor?: string[];
-    amountRange?: {
-        min?: number;
-        max?: number;
-    };
-    paymentMethods?: string[];
-    categories?: string[];
+  type: 'Expenses';
+  vendor?: string[];
+  amountRange?: {
+    min: number;
+    max: number;
+  };
+  paymentMethod?: string[];
+  expenseType?: string[];
 }
 
-// Donation specific filters
 export interface DonationFilter extends BaseFilter {
-    charityName?: string[];
-    amountRange?: {
-        min?: number;
-        max?: number;
-    };
-    donationType?: string[];
+  type: 'Donations';
+  charityName?: string[];
+  amountRange?: {
+    min: number;
+    max: number;
+  };
+  donationType?: string[];
 }
 
-export type DocumentFilter = 
-    | W2Filter 
-    | Form1099Filter 
-    | ExpenseFilter 
-    | DonationFilter; 
+export type DocumentFilter = W2Filter | Form1099Filter | ExpenseFilter | DonationFilter; 
