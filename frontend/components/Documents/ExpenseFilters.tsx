@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Accordion,
@@ -32,22 +32,47 @@ export interface ExpenseFilter {
     status?: string[];
 }
 
+interface FilterOptions {
+    categories: string[];
+    payment_methods: string[];
+    statuses: string[];
+    vendors: string[];
+}
+
 interface ExpenseFiltersProps {
     filters: ExpenseFilter;
     onFilterChange: (filters: ExpenseFilter) => void;
-    availableFilters: {
-        vendors: string[];
-        paymentMethods: string[];
-        categories: string[];
-        statuses: string[];
-    };
 }
 
 export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
     filters,
     onFilterChange,
-    availableFilters
 }) => {
+    const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+        categories: [],
+        payment_methods: [],
+        statuses: [],
+        vendors: []
+    });
+
+    useEffect(() => {
+        // Fetch filter options from the backend
+        const fetchOptions = async () => {
+            try {
+                const response = await fetch('/api/options');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch options');
+                }
+                const data = await response.json();
+                setFilterOptions(data);
+            } catch (error) {
+                console.error('Error fetching filter options:', error);
+            }
+        };
+
+        fetchOptions();
+    }, []);
+
     const handleRemoveFilter = (type: keyof ExpenseFilter, value?: string) => {
         const newFilters = { ...filters };
         if (value && Array.isArray(newFilters[type])) {
@@ -158,7 +183,7 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
                                     })}
                                     label="Vendor"
                                 >
-                                    {availableFilters.vendors.map((vendor) => (
+                                    {filterOptions.vendors.map((vendor) => (
                                         <MenuItem key={vendor} value={vendor}>
                                             {vendor}
                                         </MenuItem>
@@ -178,7 +203,7 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
                                     })}
                                     label="Payment Method"
                                 >
-                                    {availableFilters.paymentMethods.map((method) => (
+                                    {filterOptions.payment_methods.map((method) => (
                                         <MenuItem key={method} value={method}>
                                             {method}
                                         </MenuItem>
@@ -198,9 +223,29 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
                                     })}
                                     label="Category"
                                 >
-                                    {availableFilters.categories.map((category) => (
+                                    {filterOptions.categories.map((category) => (
                                         <MenuItem key={category} value={category}>
                                             {category}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            {/* Status Select */}
+                            <FormControl size="small" sx={{ minWidth: 200 }}>
+                                <InputLabel>Status</InputLabel>
+                                <Select
+                                    multiple
+                                    value={filters.status || []}
+                                    onChange={(e) => onFilterChange({
+                                        ...filters,
+                                        status: e.target.value as string[]
+                                    })}
+                                    label="Status"
+                                >
+                                    {filterOptions.statuses.map((status) => (
+                                        <MenuItem key={status} value={status}>
+                                            {status}
                                         </MenuItem>
                                     ))}
                                 </Select>

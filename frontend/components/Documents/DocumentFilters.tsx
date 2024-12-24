@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Accordion,
@@ -25,6 +25,13 @@ interface FilterField {
     label: string;
     field: string;
     options?: string[]; // For multi-select
+}
+
+interface FilterOptions {
+    categories: string[];
+    payment_methods: string[];
+    statuses: string[];
+    vendors: string[];
 }
 
 const FILTER_CONFIG: Record<DocumentType, FilterField[]> = {
@@ -62,7 +69,6 @@ interface DocumentFiltersProps {
     type: DocumentType;
     filters: DocumentFilter;
     onFilterChange: (filters: DocumentFilter) => void;
-    availableOptions: Record<string, string[]>; // Field name to available options
     variant?: 'default' | 'toolbar';
 }
 
@@ -70,10 +76,48 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
     type,
     filters,
     onFilterChange,
-    availableOptions,
     variant = 'default'
 }) => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+        categories: [],
+        payment_methods: [],
+        statuses: [],
+        vendors: []
+    });
+
+    useEffect(() => {
+        // Fetch filter options from the backend
+        const fetchOptions = async () => {
+            try {
+                const response = await fetch('/api/options');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch options');
+                }
+                const data = await response.json();
+                setFilterOptions(data);
+            } catch (error) {
+                console.error('Error fetching filter options:', error);
+            }
+        };
+
+        fetchOptions();
+    }, []);
+
+    const getOptionsForField = (field: string): string[] => {
+        switch (field) {
+            case 'categories':
+                return filterOptions.categories;
+            case 'paymentMethods':
+                return filterOptions.payment_methods;
+            case 'status':
+                return filterOptions.statuses;
+            case 'vendor':
+                return filterOptions.vendors;
+            default:
+                return [];
+        }
+    };
 
     const handleNumberRangeChange = (field: string, bound: 'min' | 'max', value: string) => {
         const numValue = value ? Number(value) : undefined;
@@ -231,7 +275,7 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
                             onChange={(e) => handleMultiSelectChange(field.field, e.target.value as string[])}
                             label={field.label}
                         >
-                            {availableOptions[field.field]?.map((option) => (
+                            {getOptionsForField(field.field).map((option) => (
                                 <MenuItem key={option} value={option}>
                                     {option}
                                 </MenuItem>
