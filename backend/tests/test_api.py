@@ -3,6 +3,7 @@ import io
 from PIL import Image, ImageDraw
 import json
 from datetime import datetime, timedelta
+from config import config
 
 def create_test_receipt_image():
     """Create a test receipt image"""
@@ -256,3 +257,75 @@ def test_status_transitions(client):
     })
     assert response.status_code == 200
     assert response.json['updated_fields']['status'] == 'approved'
+
+def test_get_expense_categories(client):
+    """Test getting expense categories endpoint"""
+    response = client.get('/api/expense-categories')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    
+    # Check response structure
+    assert 'categories' in data
+    assert isinstance(data['categories'], list)
+    
+    # Check categories match config
+    assert set(data['categories']) == set(config.expense_categories)
+    
+    # Check specific required categories are present
+    required_categories = [
+        "Advertising",
+        "Office expenses",
+        "Travel",
+        "Meals",
+        "Utilities",
+        "Other expenses"
+    ]
+    for category in required_categories:
+        assert category in data['categories']
+
+def test_get_expense_options(client):
+    """Test getting all expense options endpoint"""
+    response = client.get('/api/expense-options')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    
+    # Check response structure
+    assert 'categories' in data
+    assert 'payment_methods' in data
+    assert 'statuses' in data
+    
+    # Check categories
+    assert isinstance(data['categories'], list)
+    assert set(data['categories']) == set(config.expense_categories)
+    
+    # Check payment methods
+    assert isinstance(data['payment_methods'], list)
+    required_payment_methods = ["credit_card", "debit_card", "cash", "check", "wire_transfer", "other"]
+    assert set(data['payment_methods']) == set(required_payment_methods)
+    
+    # Check statuses
+    assert isinstance(data['statuses'], list)
+    required_statuses = ["pending", "approved", "rejected"]
+    assert set(data['statuses']) == set(required_statuses)
+
+def test_update_receipt_with_category(client):
+    """Test updating receipt with category from config"""
+    receipt_id = test_upload_receipt_unit(client)
+    
+    # Test each category from config
+    for category in config.expense_categories:
+        response = client.patch(f'/api/receipts/{receipt_id}/update', json={
+            'category': category
+        })
+        assert response.status_code == 200
+        assert response.json['success'] is True
+        assert response.json['updated_fields']['category'] == category
+    
+    # Test invalid category
+    response = client.patch(f'/api/receipts/{receipt_id}/update', json={
+        'category': 'Invalid Category'
+    })
+    assert response.status_code == 400
+    assert 'error' in response.json
+    assert 'details' in response.json
+    assert 'category' in response.json['details']

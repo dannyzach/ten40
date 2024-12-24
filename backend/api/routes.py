@@ -20,6 +20,26 @@ logger = logging.getLogger('api.routes')
 
 api_bp = Blueprint('api', __name__)
 
+# Add new endpoints for categories and options
+@api_bp.route('/expense-categories', methods=['GET'])
+def get_expense_categories():
+    """Get all available expense categories"""
+    return jsonify({
+        'categories': config.expense_categories
+    })
+
+@api_bp.route('/expense-options', methods=['GET'])
+def get_expense_options():
+    """Get all available options for expenses including categories, payment methods, and statuses"""
+    payment_methods = ["credit_card", "debit_card", "cash", "check", "wire_transfer", "other"]
+    statuses = ["pending", "approved", "rejected"]
+    
+    return jsonify({
+        'categories': config.expense_categories,
+        'payment_methods': payment_methods,
+        'statuses': statuses
+    })
+
 def verify_image(filepath):
     """Verify image was saved correctly"""
     try:
@@ -92,11 +112,11 @@ def validate_field_values(data, receipt_id):
             errors['payment_method'] = f"Payment method must be one of: {', '.join(valid_payment_methods)}"
     
     # Validate category - case insensitive
-    valid_categories = ["office_supplies", "travel", "meals", "utilities", "software", "hardware", "other"]
     if 'category' in data:
         category = data['category'].lower()
+        valid_categories = [cat.lower() for cat in config.expense_categories]
         if category not in valid_categories:
-            errors['category'] = f"Category must be one of: {', '.join(valid_categories)}"
+            errors['category'] = f"Category must be one of: {', '.join(config.expense_categories)}"
     
     # Validate status - case insensitive and transitions
     valid_statuses = ["pending", "approved", "rejected"]
