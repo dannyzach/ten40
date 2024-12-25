@@ -84,5 +84,6 @@ def test_categorize_receipt_empty_content():
 
 def test_categorize_receipt_none_content():
     """Test categorization with None content"""
-    with pytest.raises(AttributeError):
-        CategorizationService.categorize_receipt(None) 
+    # Test that None input returns default category
+    category = CategorizationService.categorize_receipt(None)
+    assert category == "Other Expenses" 
