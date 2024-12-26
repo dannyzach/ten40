@@ -15,7 +15,7 @@ import { format, parse, isValid } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 
 interface EditableCellProps {
-  value: string | number;
+  value: string | number | null;
   type: 'text' | 'date' | 'amount' | 'select';
   onSave: (newValue: string) => Promise<void>;
   options?: string[];
@@ -34,12 +34,12 @@ export const EditableCell: React.FC<EditableCellProps> = ({
   format: formatValue,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(value.toString());
+  const [editValue, setEditValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setEditValue(value.toString());
+    setEditValue(value != null ? value.toString() : '');
   }, [value]);
 
   const handleClick = () => {

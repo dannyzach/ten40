@@ -52,8 +52,8 @@ const FILTER_CONFIG: Record<DocumentType, FilterField[]> = {
         { type: 'multi-select', label: 'Vendor', field: 'vendor' },
         { type: 'number-range', label: 'Amount', field: 'amountRange' },
         { type: 'date-range', label: 'Date', field: 'dateRange' },
-        { type: 'multi-select', label: 'Payment Method', field: 'paymentMethods' },
-        { type: 'multi-select', label: 'Category', field: 'categories' },
+        { type: 'multi-select', label: 'Payment Method', field: 'paymentMethod' },
+        { type: 'multi-select', label: 'Expense Type', field: 'category' },
         { type: 'multi-select', label: 'Status', field: 'status' }
     ],
     'Donations': [
@@ -70,13 +70,15 @@ interface DocumentFiltersProps {
     filters: DocumentFilter;
     onFilterChange: (filters: DocumentFilter) => void;
     variant?: 'default' | 'toolbar';
+    availableOptions?: Record<string, string[]>;
 }
 
 export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
     type,
     filters,
     onFilterChange,
-    variant = 'default'
+    variant = 'default',
+    availableOptions = {}
 }) => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
@@ -105,15 +107,17 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
     }, []);
 
     const getOptionsForField = (field: string): string[] => {
+        if (!availableOptions) return [];
+        
         switch (field) {
-            case 'categories':
-                return filterOptions.categories;
-            case 'paymentMethods':
-                return filterOptions.payment_methods;
+            case 'category':
+                return availableOptions.categories || [];
+            case 'paymentMethod':
+                return availableOptions.payment_methods || [];
             case 'status':
-                return filterOptions.statuses;
+                return availableOptions.statuses || [];
             case 'vendor':
-                return filterOptions.vendors;
+                return availableOptions.vendors || [];
             default:
                 return [];
         }

@@ -1,5 +1,5 @@
 export type DocumentType = 'W-2' | '1099' | 'Expenses' | 'Donations';
-export type DocumentStatus = 'all' | 'pending' | 'approved';
+export type DocumentStatus = 'Pending' | 'Approved' | 'Rejected' | 'all';
 
 interface BaseDocument {
     id: string;
@@ -27,7 +27,7 @@ export interface ExpenseDocument extends BaseDocument {
     amount: number;
     date: string;
     payment_method: string;
-    expenseType: string;
+    category: string;
     originalReceipt?: {
         image_path: string;
         [key: string]: any;

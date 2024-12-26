@@ -35,7 +35,7 @@ export interface ExpenseFilter extends BaseFilter {
     max: number;
   };
   paymentMethod?: string[];
-  expenseType?: string[];
+  category?: string[];
 }
 
 export interface DonationFilter extends BaseFilter {
