@@ -22,7 +22,7 @@ def test_update_receipt_fields(client):
     update_data = {
         "vendor": "New Vendor",
         "amount": "25.50",
-        "category": "Office Expenses"
+        "category": "office_supplies"
     }
 
     response = client.patch(f'/api/receipts/{receipt_id}/update', json=update_data)
@@ -33,7 +33,7 @@ def test_update_receipt_fields(client):
         updated_receipt = db.query(Receipt).get(receipt_id)
         assert updated_receipt.vendor == "New Vendor"
         assert updated_receipt.amount == "25.50"
-        assert updated_receipt.category == "Office Expenses"
+        assert updated_receipt.category == "office_supplies"
 
     # Clean up
     with get_db() as db:
@@ -56,7 +56,7 @@ def test_partial_update_receipt(client):
             amount="10.00",
             date="2023-12-16",
             payment_method="CASH",
-            category="Other Expenses",
+            category="Other",
             content={"test": "data"}
         )
         db.add(receipt)
@@ -72,7 +72,7 @@ def test_partial_update_receipt(client):
         updated_receipt = db.query(Receipt).get(receipt_id)
         assert updated_receipt.vendor == "New Vendor"
         assert updated_receipt.amount == "10.00"  # unchanged
-        assert updated_receipt.category == "Other Expenses"  # unchanged
+        assert updated_receipt.category == "Other"  # unchanged
 
     # Clean up
     with get_db() as db:

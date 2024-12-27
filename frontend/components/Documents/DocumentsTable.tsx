@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     Table,
     TableBody,
@@ -8,22 +8,157 @@ import {
     TableRow,
     Paper,
     IconButton,
+    TableSortLabel,
     Box,
     Typography,
     Tooltip,
     CircularProgress,
+    Checkbox,
     Alert,
     Snackbar,
+    Fade,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    Button,
 } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { DocumentType, Document } from '@/types';
+import { 
+    DocumentType, 
+    DocumentStatus, 
+    Document,
+    W2Document,
+    Form1099Document,
+    ExpenseDocument,
+    DonationDocument
+} from '@/types';
 import { documentsApi } from '@/lib/api/documents';
+import { useRouter } from 'next/router';
 import { ImageViewer } from '@/components/ImageViewer';
 import { DocumentFilter } from '@/types/filters';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import { DocumentFilters } from './DocumentFilters';
+import { useSearch } from '@/contexts/SearchContext';
+import { EditableCell } from './EditableCell';
+import { updateDocument } from '@/lib/api/documents';
+import { format, parse, isValid } from 'date-fns';
+import { enUS } from 'date-fns/locale';
+
+type ColumnId<T> = keyof T;
+
+interface Column<T extends Document = Document> {
+  id: ColumnId<T>;
+  label: string;
+  minWidth?: number;
+  align?: 'left' | 'right' | 'center';
+  format?: (value: any) => string;
+  editable?: boolean;
+  editType?: 'text' | 'date' | 'amount' | 'select';
+  options?: string[];
+}
+
+type DocumentColumns = {
+  'W-2': Column<W2Document>[];
+  '1099': Column<Form1099Document>[];
+  'Expenses': Column<ExpenseDocument>[];
+  'Donations': Column<DonationDocument>[];
+};
+
+const COLUMNS: DocumentColumns = {
+  'W-2': [
+    { id: 'employer', label: 'Employer', minWidth: 170 },
+    { 
+      id: 'wages',
+      label: 'Wages',
+      minWidth: 100,
+      align: 'right',
+      format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    },
+    { 
+      id: 'fedWithholding',
+      label: 'Fed Withholding',
+      minWidth: 130,
+      align: 'right',
+      format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    },
+    { id: 'status', label: 'Status', minWidth: 100, align: 'center' }
+  ],
+  '1099': [
+    { id: 'employer', label: 'Payer', minWidth: 170 },
+    { 
+      id: 'nonEmpCompensation',
+      label: 'Amount',
+      minWidth: 100,
+      align: 'right',
+      format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    },
+    { id: 'status', label: 'Status', minWidth: 100, align: 'center' }
+  ],
+  'Expenses': [
+    { 
+      id: 'vendor',
+      label: 'Vendor',
+      minWidth: 170,
+      editable: true,
+      editType: 'text'
+    },
+    { 
+      id: 'amount',
+      label: 'Amount',
+      minWidth: 100,
+      align: 'right',
+      editable: true,
+      editType: 'amount',
+      format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    },
+    { 
+      id: 'date',
+      label: 'Date',
+      minWidth: 100,
+      editable: true,
+      editType: 'date',
+      format: (value: string) => new Date(value).toLocaleDateString()
+    },
+    { 
+      id: 'payment_method',
+      label: 'Payment Method',
+      minWidth: 130,
+      editable: true,
+      editType: 'select',
+      options: ['credit_card', 'debit_card', 'cash', 'check', 'other']
+    },
+    { 
+      id: 'expenseType',
+      label: 'Expense Category',
+      minWidth: 150,
+      editable: false
+    },
+    { 
+      id: 'status',
+      label: 'Status',
+      minWidth: 100,
+      align: 'center',
+      editable: false
+    }
+  ],
+  'Donations': [
+    { id: 'charityName', label: 'Charity', minWidth: 170 },
+    { 
+      id: 'amount',
+      label: 'Amount',
+      minWidth: 100,
+      align: 'right',
+      format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    },
+    { id: 'donationType', label: 'Type', minWidth: 100 },
+    { id: 'date', label: 'Date', minWidth: 100 },
+    { id: 'status', label: 'Status', minWidth: 100, align: 'center' }
+  ],
+};
 
 interface DocumentsTableProps {
     type: DocumentType;
@@ -31,28 +166,163 @@ interface DocumentsTableProps {
     onFilterChange: (newFilters: DocumentFilter) => void;
 }
 
-type SortField = 'vendor' | 'amount' | 'date' | 'payment_method' | 'category';
-type SortDirection = 'asc' | 'desc';
+// Add this type for sorting
+type SortComparator = (a: Document, b: Document) => number;
+
+// Add this helper function at the top of the file
+const isValidDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date instanceof Date && !isNaN(date.getTime());
+};
+
+const TableToolbar = ({ 
+    type,
+    numSelected, 
+    onSelectAll, 
+    onDelete,
+    filters,
+    onFilterChange,
+    availableOptions
+}: { 
+    type: DocumentType;
+    numSelected: number;
+    onSelectAll: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    onDelete: () => void;
+    filters: DocumentFilter;
+    onFilterChange: (filters: DocumentFilter) => void;
+    availableOptions: Record<string, string[]>;
+}) => (
+    <Box
+        sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: 1,
+            borderColor: 'divider',
+            bgcolor: numSelected > 0 ? 'action.selected' : 'background.paper',
+            px: 2,
+            py: 1,
+        }}
+    >
+        {/* Left side: Selection and bulk actions */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Checkbox
+                indeterminate={numSelected > 0}
+                checked={numSelected > 0}
+                onChange={onSelectAll}
+            />
+            {numSelected > 0 ? (
+                <>
+                    <Typography>
+                        {numSelected} selected
+                    </Typography>
+                    <Tooltip title="Delete">
+                        <IconButton 
+                            onClick={onDelete}
+                            size="small"
+                        >
+                            <DeleteIcon />
+                        </IconButton>
+                    </Tooltip>
+                </>
+            ) : (
+                <Typography variant="h6" component="div">
+                    {type}
+                </Typography>
+            )}
+        </Box>
+
+        {/* Right side: Filters */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <DocumentFilters
+                type={type}
+                filters={filters}
+                onFilterChange={onFilterChange}
+                availableOptions={availableOptions}
+                variant="toolbar" // New prop to render in compact mode
+            />
+        </Box>
+    </Box>
+);
 
 export const DocumentsTable: React.FC<DocumentsTableProps> = ({
     type,
     filters,
     onFilterChange,
 }) => {
-    const [selectedImagePath, setSelectedImagePath] = useState<string | null>(null);
+    const router = useRouter();
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(true);
+    const [orderBy, setOrderBy] = useState<string>('');
+    const [order, setOrder] = useState<'asc' | 'desc'>('asc');
     const [error, setError] = useState<string | null>(null);
-    const [snackbar, setSnackbar] = useState<{
+    const [availableOptions, setAvailableOptions] = useState<Record<string, string[]>>({});
+    const { searchQuery } = useSearch();
+    const [selected, setSelected] = useState<number[]>([]);
+    const [deleteSnackbar, setDeleteSnackbar] = useState({
+        open: false,
+        message: ''
+    });
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [bulkActionStatus, setBulkActionStatus] = useState<{
         show: boolean;
         message: string;
         type: 'success' | 'error';
     }>({ show: false, message: '', type: 'success' });
-    const [sortField, setSortField] = useState<SortField>('date');
-    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
     useEffect(() => {
         fetchDocuments();
+    }, [type]);
+
+    useEffect(() => {
+        // Set default sorting when type changes
+        if (type === 'Expenses') {
+            setOrderBy('date');
+            setOrder('desc');
+        } else {
+            setOrderBy('');
+            setOrder('asc');
+        }
+    }, [type]);
+
+    useEffect(() => {
+        if (documents.length > 0) {
+            const options: Record<string, Set<string>> = {};
+            
+            documents.forEach(doc => {
+                if (doc.type === 'Expenses') {
+                    // Collect vendors
+                    if (doc.vendor) {
+                        options.vendor = options.vendor || new Set();
+                        options.vendor.add(doc.vendor);
+                    }
+                    // Collect payment methods
+                    if (doc.payment_method) {
+                        options.paymentMethods = options.paymentMethods || new Set();
+                        options.paymentMethods.add(doc.payment_method);
+                    }
+                    // Collect categories
+                    if (doc.expenseType) {
+                        options.categories = options.categories || new Set();
+                        options.categories.add(doc.expenseType);
+                    }
+                }
+                // Add similar collectors for other document types
+            });
+
+            // Convert Sets to arrays
+            const finalOptions = Object.entries(options).reduce((acc, [key, value]) => {
+                acc[key] = Array.from(value).sort();
+                return acc;
+            }, {} as Record<string, string[]>);
+
+            setAvailableOptions(finalOptions);
+        }
+    }, [documents]);
+
+    useEffect(() => {
+        setSelected([]);
     }, [type]);
 
     const fetchDocuments = async () => {
@@ -60,6 +330,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         setError(null);
         try {
             const docs = await documentsApi.getDocuments(type);
+            console.log('DocumentsTable.fetchDocuments: Received documents:', docs);
             setDocuments(docs);
         } catch (error) {
             console.error('Error fetching documents:', error);
@@ -69,63 +340,428 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         }
     };
 
-    const handleViewImage = (imagePath: string) => {
-        setSelectedImagePath(imagePath);
-    };
-
-    const handleCloseImageViewer = () => {
-        setSelectedImagePath(null);
+    const handleApprove = async (documentId: string) => {
+        try {
+            await documentsApi.approveDocument(documentId, type);
+            await fetchDocuments(); // Refresh the list after approval
+        } catch (error) {
+            console.error('Error approving document:', error);
+            // You might want to add error handling UI here
+        }
     };
 
     const handleEdit = (documentId: string) => {
+        // For now, just log the action
         console.log('Edit document:', documentId);
     };
 
-    const handleDelete = async (documentId: string) => {
-        try {
-            await documentsApi.deleteDocument(documentId);
-            setDocuments(documents.filter(doc => doc.id !== documentId));
-            setSnackbar({ show: true, message: 'Document deleted successfully', type: 'success' });
-        } catch (error) {
-            setSnackbar({ show: true, message: 'Failed to delete document', type: 'error' });
+    const handleSort = useCallback((columnId: string) => {
+        const isAsc = orderBy === columnId && order === 'asc';
+        setOrder(isAsc ? 'desc' : 'asc');
+        setOrderBy(columnId);
+    }, [orderBy, order]);
+
+    const getFilteredDocuments = () => {
+        let filtered = documents;
+
+        // Apply type-specific filters
+        switch (type) {
+            case 'W-2':
+                const w2Filters = filters as W2Filter;
+                if (w2Filters.employer?.length) {
+                    filtered = filtered.filter(doc => 
+                        doc.type === 'W-2' && 
+                        w2Filters.employer?.includes(doc.employer)
+                    );
+                }
+                if (w2Filters.wageRange) {
+                    const { min, max } = w2Filters.wageRange;
+                    filtered = filtered.filter(doc => {
+                        if (doc.type !== 'W-2') return false;
+                        return (!min || doc.wages >= min) && (!max || doc.wages <= max);
+                    });
+                }
+                if (w2Filters.withHoldingRange) {
+                    const { min, max } = w2Filters.withHoldingRange;
+                    filtered = filtered.filter(doc => {
+                        if (doc.type !== 'W-2') return false;
+                        return (!min || doc.fedWithholding >= min) && (!max || doc.fedWithholding <= max);
+                    });
+                }
+                break;
+
+            case '1099':
+                const form1099Filters = filters as Form1099Filter;
+                if (form1099Filters.employer?.length) {
+                    filtered = filtered.filter(doc => 
+                        doc.type === '1099' && 
+                        form1099Filters.employer?.includes(doc.employer)
+                    );
+                }
+                if (form1099Filters.amountRange) {
+                    const { min, max } = form1099Filters.amountRange;
+                    filtered = filtered.filter(doc => {
+                        if (doc.type !== '1099') return false;
+                        return (!min || doc.nonEmpCompensation >= min) && 
+                               (!max || doc.nonEmpCompensation <= max);
+                    });
+                }
+                break;
+
+            case 'Donations':
+                const donationFilters = filters as DonationFilter;
+                if (donationFilters.charityName?.length) {
+                    filtered = filtered.filter(doc => 
+                        doc.type === 'Donations' && 
+                        donationFilters.charityName?.includes(doc.charityName)
+                    );
+                }
+                if (donationFilters.donationType?.length) {
+                    filtered = filtered.filter(doc =>
+                        doc.type === 'Donations' &&
+                        donationFilters.donationType?.includes(doc.donationType)
+                    );
+                }
+                if (donationFilters.amountRange) {
+                    const { min, max } = donationFilters.amountRange;
+                    filtered = filtered.filter(doc => {
+                        if (doc.type !== 'Donations') return false;
+                        return (!min || doc.amount >= min) && (!max || doc.amount <= max);
+                    });
+                }
+                break;
+
+            case 'Expenses':
+                const expenseFilters = filters as ExpenseFilter;
+                
+                // Filter by vendor
+                if (expenseFilters.vendor?.length) {
+                    filtered = filtered.filter(doc => 
+                        doc.type === 'Expenses' && 
+                        expenseFilters.vendor?.includes(doc.vendor)
+                    );
+                }
+
+                // Filter by amount range
+                if (expenseFilters.amountRange) {
+                    const { min, max } = expenseFilters.amountRange;
+                    filtered = filtered.filter(doc => {
+                        if (doc.type !== 'Expenses') return false;
+                        const amount = typeof doc.amount === 'string' 
+                            ? parseFloat(doc.amount.replace(/[^0-9.-]+/g, ''))
+                            : doc.amount;
+                        return (!min || amount >= min) && (!max || amount <= max);
+                    });
+                }
+
+                // Filter by date range
+                if (expenseFilters.dateRange) {
+                    const { start, end } = expenseFilters.dateRange;
+                    filtered = filtered.filter(doc => {
+                        if (doc.type !== 'Expenses') return false;
+                        if (!isValidDate(doc.date)) return false;
+                        const date = new Date(doc.date).getTime();
+                        return (!start || date >= new Date(start).getTime()) && 
+                               (!end || date <= new Date(end).getTime());
+                    });
+                }
+
+                // Filter by payment method
+                if (expenseFilters.paymentMethods?.length) {
+                    filtered = filtered.filter(doc =>
+                        doc.type === 'Expenses' &&
+                        doc.payment_method &&
+                        expenseFilters.paymentMethods?.includes(doc.payment_method)
+                    );
+                }
+
+                // Filter by category
+                if (expenseFilters.categories?.length) {
+                    filtered = filtered.filter(doc =>
+                        doc.type === 'Expenses' &&
+                        doc.expenseType &&
+                        expenseFilters.categories?.includes(doc.expenseType)
+                    );
+                }
+                break;
         }
-    };
 
-    const handleSort = (field: SortField) => {
-        if (field === sortField) {
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortField(field);
-            setSortDirection('asc');
+        // Apply global search
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(doc => {
+                const searchableValues = Object.values(doc)
+                    .filter(value => typeof value === 'string' || typeof value === 'number')
+                    .map(value => String(value).toLowerCase());
+                return searchableValues.some(value => value.includes(query));
+            });
         }
+
+        return filtered;
     };
 
-    const SortIcon = ({ field }: { field: SortField }) => {
-        if (sortField !== field) return (
-            <KeyboardArrowUpIcon 
-                sx={{ 
-                    width: 16, 
-                    height: 16, 
-                    color: 'text.disabled' 
-                }} 
-            />
-        );
-        return sortDirection === 'asc' 
-            ? <KeyboardArrowUpIcon sx={{ width: 16, height: 16 }} />
-            : <KeyboardArrowDownIcon sx={{ width: 16, height: 16 }} />;
-    };
+    // Add sorting logic
+    const getSortedDocuments = useCallback(() => {
+        const filtered = getFilteredDocuments();
+        if (!orderBy) return filtered;
 
-    const sortReceipts = (receipts: Document[]): Document[] => {
-        return [...receipts].sort((a, b) => {
-            const aValue = a[sortField];
-            const bValue = b[sortField];
+        return [...filtered].sort((a, b) => {
+            let aValue = a[orderBy as keyof typeof a];
+            let bValue = b[orderBy as keyof typeof b];
+
+            // Handle special cases for expense documents
+            if (a.type === 'Expenses' && b.type === 'Expenses') {
+                // Handle amount sorting
+                if (orderBy === 'amount') {
+                    aValue = typeof aValue === 'string' 
+                        ? parseFloat(aValue.replace(/[^0-9.-]+/g, ''))
+                        : aValue;
+                    bValue = typeof bValue === 'string' 
+                        ? parseFloat(bValue.replace(/[^0-9.-]+/g, ''))
+                        : bValue;
+                }
+
+                // Handle date sorting
+                if (orderBy === 'date') {
+                    const aValid = isValidDate(aValue as string);
+                    const bValid = isValidDate(bValue as string);
+
+                    // If both dates are invalid, maintain their original order
+                    if (!aValid && !bValid) return 0;
+
+                    // In ascending order: invalid dates go to the end
+                    // In descending order: invalid dates go to the beginning
+                    if (!aValid) return order === 'asc' ? 1 : -1;
+                    if (!bValid) return order === 'asc' ? -1 : 1;
+
+                    // Both dates are valid, compare them
+                    const aTime = new Date(aValue as string).getTime();
+                    const bTime = new Date(bValue as string).getTime();
+                    return order === 'asc' ? aTime - bTime : bTime - aTime;
+                }
+            }
+
+            // Handle null/undefined values
+            if (aValue === null || aValue === undefined) return 1;
+            if (bValue === null || bValue === undefined) return -1;
+            if (aValue === bValue) return 0;
+
+            // Handle numeric values
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                return order === 'asc' ? aValue - bValue : bValue - aValue;
+            }
+
+            // Handle string values
+            const aString = String(aValue).toLowerCase();
+            const bString = String(bValue).toLowerCase();
             
-            const comparison = sortDirection === 'asc' 
-                ? String(aValue).localeCompare(String(bValue))
-                : String(bValue).localeCompare(String(aValue));
-            
-            return comparison;
+            return order === 'asc' 
+                ? aString.localeCompare(bString)
+                : bString.localeCompare(aString);
         });
+    }, [getFilteredDocuments, orderBy, order]);
+
+    const renderActions = (document: Document) => {
+        if (document.type === 'Expenses') {
+            return (
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                    <Tooltip title="View Receipt">
+                        <IconButton
+                            size="small"
+                            onClick={(e) => {
+                                e.stopPropagation(); // Prevent row click
+                                handleEdit(document.id);
+                            }}
+                        >
+                            <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Edit">
+                        <IconButton
+                            size="small"
+                            onClick={(e) => {
+                                e.stopPropagation(); // Prevent row click
+                                handleEdit(document.id);
+                            }}
+                        >
+                            <EditIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
+            );
+        }
+
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                <Tooltip title="Approve">
+                    <IconButton
+                        size="small"
+                        onClick={() => handleApprove(document.id)}
+                        disabled={document.status === 'approved'}
+                    >
+                        <CheckCircleIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title="Edit">
+                    <IconButton
+                        size="small"
+                        onClick={() => handleEdit(document.id)}
+                    >
+                        <EditIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+            </Box>
+        );
+    };
+
+    const filteredDocuments = useMemo(() => 
+        getFilteredDocuments(), 
+        [documents, getFilteredDocuments, searchQuery]
+    );
+
+    const sortedDocuments = useMemo(() => 
+        getSortedDocuments(), 
+        [getFilteredDocuments, orderBy, order, getSortedDocuments]
+    );
+
+    const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.checked) {
+            const newSelected = documents.map(doc => doc.id);
+            setSelected(newSelected);
+            return;
+        }
+        setSelected([]);
+    };
+
+    const handleClick = (id: number) => {
+        const selectedIndex = selected.indexOf(id);
+        let newSelected: number[] = [];
+
+        if (selectedIndex === -1) {
+            newSelected = newSelected.concat(selected, id);
+        } else if (selectedIndex === 0) {
+            newSelected = newSelected.concat(selected.slice(1));
+        } else if (selectedIndex === selected.length - 1) {
+            newSelected = newSelected.concat(selected.slice(0, -1));
+        } else if (selectedIndex > 0) {
+            newSelected = newSelected.concat(
+                selected.slice(0, selectedIndex),
+                selected.slice(selectedIndex + 1),
+            );
+        }
+
+        setSelected(newSelected);
+    };
+
+    const handleBulkDelete = async () => {
+        if (!selected.length) return;
+        
+        setIsDeleting(true);
+        try {
+            await documentsApi.deleteDocuments(selected);
+            
+            // Only clear selection and refresh if delete was successful
+            setSelected([]);
+            await fetchDocuments();
+            
+            setBulkActionStatus({
+                show: true,
+                message: 'Successfully deleted selected items',
+                type: 'success'
+            });
+            setShowBulkDeleteConfirm(false);
+        } catch (error) {
+            console.error('Bulk delete error:', error);
+            setBulkActionStatus({
+                show: true,
+                message: error instanceof Error ? error.message : 'Failed to delete selected items',
+                type: 'error'
+            });
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const renderCell = (document: Document, column: Column) => {
+        const value = document[column.id];
+        
+        if (document.type === 'Expenses' && column.editable) {
+            const expenseDoc = document as ExpenseDocument;
+            const columnKey = column.id as keyof ExpenseDocument;
+            
+            // Format the initial value for dates
+            let initialValue = expenseDoc[columnKey];
+            if (column.editType === 'date') {
+                console.log('DocumentsTable.renderCell: Processing date field:', {
+                    originalValue: initialValue,
+                    type: typeof initialValue,
+                    columnKey
+                });
+            }
+            
+            return (
+                <EditableCell
+                    key={column.id}
+                    value={initialValue}
+                    type={column.editType as 'text' | 'date' | 'amount' | 'select'}
+                    options={column.options}
+                    align={column.align}
+                    format={column.format}
+                    onSave={async (newValue: string) => {
+                        try {
+                            console.log('DocumentsTable.onSave: Updating field:', {
+                                documentId: document.id,
+                                field: columnKey,
+                                oldValue: initialValue,
+                                newValue,
+                                type: column.editType
+                            });
+                            
+                            // Format the value based on type before sending to API
+                            const formattedValue = column.editType === 'amount' 
+                                ? parseFloat(newValue.replace(/[^\d.-]/g, ''))
+                                : newValue;
+                            
+                            console.log('DocumentsTable.onSave: Sending to API:', {
+                                documentId: document.id,
+                                updates: { [columnKey]: formattedValue }
+                            });
+                            
+                            const updates = { [columnKey]: formattedValue };
+                            const updatedDoc = await updateDocument(document.id, updates);
+                            
+                            console.log('DocumentsTable.onSave: Received API response:', {
+                                documentId: document.id,
+                                updatedDoc
+                            });
+                            
+                            // Update all fields in the document with the response
+                            setDocuments(prevDocs =>
+                                prevDocs.map(doc =>
+                                    doc.id === document.id 
+                                        ? { ...doc, ...updatedDoc }
+                                        : doc
+                                )
+                            );
+                        } catch (error) {
+                            console.error('DocumentsTable.onSave: Update failed:', {
+                                error,
+                                documentId: document.id,
+                                field: columnKey,
+                                value: newValue
+                            });
+                            throw error;
+                        }
+                    }}
+                />
+            );
+        }
+
+        return (
+            <TableCell key={column.id} align={column.align}>
+                {column.format && value !== undefined ? column.format(value) : value}
+            </TableCell>
+        );
     };
 
     if (loading) {
@@ -138,158 +774,154 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
 
     if (error) {
         return (
-            <Paper sx={{ p: 4, textAlign: 'center', color: 'error.main' }}>
+            <Paper 
+                variant="outlined" 
+                sx={{ 
+                    p: 4, 
+                    textAlign: 'center',
+                    color: 'error.main'
+                }}
+            >
                 <Typography>{error}</Typography>
             </Paper>
         );
     }
 
+    if (documents.length === 0) {
+        return (
+            <Paper 
+                variant="outlined" 
+                sx={{ 
+                    p: 4, 
+                    textAlign: 'center',
+                    color: 'text.secondary'
+                }}
+            >
+                <Typography>
+                    No {type} documents found
+                </Typography>
+            </Paper>
+        );
+    }
+
     return (
-        <Box sx={{ width: '100%' }}>
-            {selectedImagePath && (
-                <ImageViewer
-                    imagePath={selectedImagePath}
-                    onClose={handleCloseImageViewer}
+        <>
+            <DocumentFilters
+                type={type}
+                filters={filters}
+                onFilterChange={onFilterChange}
+                availableOptions={availableOptions}
+            />
+            <Paper>
+                <TableToolbar 
+                    type={type}
+                    numSelected={selected.length}
+                    onSelectAll={handleSelectAllClick}
+                    onDelete={handleBulkDelete}
+                    filters={filters}
+                    onFilterChange={onFilterChange}
+                    availableOptions={availableOptions}
                 />
-            )}
-            
-            <TableContainer>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell 
-                                onClick={() => handleSort('vendor')}
-                                sx={{ 
-                                    cursor: 'pointer',
-                                    userSelect: 'none',
-                                    '&:hover': { bgcolor: 'action.hover' }
-                                }}
-                            >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    Vendor
-                                    <SortIcon field="vendor" />
-                                </Box>
-                            </TableCell>
-                            <TableCell 
-                                onClick={() => handleSort('amount')}
-                                sx={{ 
-                                    cursor: 'pointer',
-                                    userSelect: 'none',
-                                    '&:hover': { bgcolor: 'action.hover' }
-                                }}
-                            >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    Amount
-                                    <SortIcon field="amount" />
-                                </Box>
-                            </TableCell>
-                            <TableCell 
-                                onClick={() => handleSort('date')}
-                                sx={{ 
-                                    cursor: 'pointer',
-                                    userSelect: 'none',
-                                    '&:hover': { bgcolor: 'action.hover' }
-                                }}
-                            >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    Date
-                                    <SortIcon field="date" />
-                                </Box>
-                            </TableCell>
-                            <TableCell 
-                                onClick={() => handleSort('payment_method')}
-                                sx={{ 
-                                    cursor: 'pointer',
-                                    userSelect: 'none',
-                                    '&:hover': { bgcolor: 'action.hover' }
-                                }}
-                            >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    Payment Method
-                                    <SortIcon field="payment_method" />
-                                </Box>
-                            </TableCell>
-                            <TableCell 
-                                onClick={() => handleSort('category')}
-                                sx={{ 
-                                    cursor: 'pointer',
-                                    userSelect: 'none',
-                                    '&:hover': { bgcolor: 'action.hover' }
-                                }}
-                            >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    Category
-                                    <SortIcon field="category" />
-                                </Box>
-                            </TableCell>
-                            <TableCell align="right">Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {sortReceipts(documents).map((document) => (
-                            <TableRow hover key={document.id}>
-                                <TableCell>{document.type === 'Expenses' ? document.vendor : ''}</TableCell>
-                                <TableCell>
-                                    {document.type === 'Expenses' ? 
-                                        document.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) 
-                                        : ''}
-                                </TableCell>
-                                <TableCell>{document.date}</TableCell>
-                                <TableCell>{document.type === 'Expenses' ? document.payment_method : ''}</TableCell>
-                                <TableCell sx={{ 
-                                    maxWidth: { xs: '120px', sm: '200px', md: '300px' },
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap'
-                                }}>
-                                    {document.category}
-                                </TableCell>
-                                <TableCell align="right">
-                                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                                        <Tooltip title="View Receipt">
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => handleViewImage(document.image_path)}
-                                            >
-                                                <VisibilityIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Edit">
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => handleEdit(document.id)}
-                                            >
-                                                <EditIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Delete">
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => handleDelete(document.id)}
-                                            >
-                                                <DeleteIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </Box>
-                                </TableCell>
+                <TableContainer>
+                    <Table stickyHeader size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell padding="checkbox" />
+                                {COLUMNS[type].map((column) => (
+                                    <TableCell
+                                        key={column.id}
+                                        align={column.align}
+                                        style={{ minWidth: column.minWidth }}
+                                    >
+                                        <TableSortLabel
+                                            active={orderBy === column.id}
+                                            direction={orderBy === column.id ? order : 'asc'}
+                                            onClick={() => handleSort(column.id)}
+                                            sx={{
+                                                '& .MuiTableSortLabel-icon': {
+                                                    opacity: orderBy === column.id ? 1 : 0.5
+                                                }
+                                            }}
+                                        >
+                                            {column.label}
+                                        </TableSortLabel>
+                                    </TableCell>
+                                ))}
+                                <TableCell align="right">Actions</TableCell>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                        </TableHead>
+                        <TableBody>
+                            {sortedDocuments.map((document) => (
+                                <TableRow 
+                                    hover 
+                                    key={document.id}
+                                    selected={selected.includes(document.id)}
+                                    sx={{ 
+                                        '&:hover': {
+                                            bgcolor: 'action.hover',
+                                        }
+                                    }}
+                                >
+                                    <TableCell padding="checkbox">
+                                        <Checkbox
+                                            checked={selected.includes(document.id)}
+                                            onChange={() => handleClick(document.id)}
+                                        />
+                                    </TableCell>
+                                    {COLUMNS[type].map((column) => renderCell(document, column))}
+                                    <TableCell align="right">
+                                        {renderActions(document)}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Paper>
 
             <Snackbar
-                open={snackbar.show}
+                open={deleteSnackbar.open}
                 autoHideDuration={6000}
-                onClose={() => setSnackbar(prev => ({ ...prev, show: false }))}
+                onClose={() => setDeleteSnackbar({ ...deleteSnackbar, open: false })}
+                message={deleteSnackbar.message}
+            />
+
+            <Dialog
+                open={showBulkDeleteConfirm}
+                onClose={() => setShowBulkDeleteConfirm(false)}
+            >
+                <DialogTitle>Confirm Delete</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to delete {selected.length} selected items?
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setShowBulkDeleteConfirm(false)}>
+                        Cancel
+                    </Button>
+                    <Button 
+                        onClick={handleBulkDelete}
+                        color="error"
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={bulkActionStatus.show}
+                autoHideDuration={6000}
+                onClose={() => setBulkActionStatus(prev => ({ ...prev, show: false }))}
             >
                 <Alert 
-                    severity={snackbar.type}
-                    onClose={() => setSnackbar(prev => ({ ...prev, show: false }))}
+                    severity={bulkActionStatus.type}
+                    onClose={() => setBulkActionStatus(prev => ({ ...prev, show: false }))}
                 >
-                    {snackbar.message}
+                    {bulkActionStatus.message}
                 </Alert>
             </Snackbar>
-        </Box>
+        </>
     );
 }; 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     Box,
     Accordion,
@@ -27,11 +27,7 @@ interface FilterField {
     options?: string[]; // For multi-select
 }
 
-interface FilterConfig {
-    [key: string]: FilterField[];
-}
-
-const FILTER_CONFIG: FilterConfig = {
+const FILTER_CONFIG: Record<DocumentType, FilterField[]> = {
     'W-2': [
         { type: 'multi-select', label: 'Employer', field: 'employer' },
         { type: 'number-range', label: 'Wages', field: 'wageRange' },
@@ -78,38 +74,6 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
     variant = 'default'
 }) => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const [expenseOptions, setExpenseOptions] = useState<{
-        categories: string[];
-        payment_methods: string[];
-        statuses: string[];
-    }>({
-        categories: [],
-        payment_methods: [],
-        statuses: []
-    });
-
-    useEffect(() => {
-        // Only fetch options if the document type is 'Expenses'
-        if (type === 'Expenses') {
-            fetch('/api/expense-options')
-                .then(response => response.json())
-                .then(data => {
-                    setExpenseOptions(data);
-                    // Update FILTER_CONFIG with fetched options
-                    const expensesConfig = FILTER_CONFIG['Expenses'];
-                    expensesConfig.forEach(field => {
-                        if (field.field === 'categories') {
-                            field.options = data.categories;
-                        } else if (field.field === 'paymentMethods') {
-                            field.options = data.payment_methods;
-                        } else if (field.field === 'status') {
-                            field.options = data.statuses;
-                        }
-                    });
-                })
-                .catch(error => console.error('Error fetching expense options:', error));
-        }
-    }, [type]);
 
     const handleNumberRangeChange = (field: string, bound: 'min' | 'max', value: string) => {
         const numValue = value ? Number(value) : undefined;
@@ -156,6 +120,55 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
 
     const handleResetFilters = () => {
         onFilterChange({});
+    };
+
+    const renderActiveFilters = () => {
+        return (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                {FILTER_CONFIG[type].map(field => {
+                    const value = filters[field.field as keyof DocumentFilter];
+                    if (!value) return null;
+
+                    switch (field.type) {
+                        case 'multi-select':
+                            return (Array.isArray(value) ? value : []).map(v => (
+                                <Chip
+                                    key={`${field.field}-${v}`}
+                                    label={`${field.label}: ${v}`}
+                                    onDelete={() => handleRemoveFilter(field.field as keyof DocumentFilter, v)}
+                                    size="small"
+                                />
+                            ));
+                        case 'number-range': {
+                            const range = value as { min?: number; max?: number };
+                            if (!range.min && !range.max) return null;
+                            return (
+                                <Chip
+                                    key={field.field}
+                                    label={`${field.label}: ${range.min || '0'} - ${range.max || '∞'}`}
+                                    onDelete={() => handleRemoveFilter(field.field as keyof DocumentFilter)}
+                                    size="small"
+                                />
+                            );
+                        }
+                        case 'date-range': {
+                            const dates = value as { start?: string; end?: string };
+                            if (!dates.start && !dates.end) return null;
+                            return (
+                                <Chip
+                                    key={field.field}
+                                    label={`${field.label}: ${dates.start || '∞'} - ${dates.end || '∞'}`}
+                                    onDelete={() => handleRemoveFilter(field.field as keyof DocumentFilter)}
+                                    size="small"
+                                />
+                            );
+                        }
+                        default:
+                            return null;
+                    }
+                })}
+            </Box>
+        );
     };
 
     const renderFilterField = (field: FilterField) => {
@@ -208,19 +221,7 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
                 );
             }
 
-            case 'multi-select': {
-                // Use options from the backend for expense filters if available
-                let options = field.options;
-                if (type === 'Expenses') {
-                    if (field.field === 'categories') {
-                        options = expenseOptions.categories;
-                    } else if (field.field === 'paymentMethods') {
-                        options = expenseOptions.payment_methods;
-                    } else if (field.field === 'status') {
-                        options = expenseOptions.statuses;
-                    }
-                }
-                
+            case 'multi-select':
                 return (
                     <FormControl size="small" sx={{ minWidth: 200 }}>
                         <InputLabel>{field.label}</InputLabel>
@@ -230,7 +231,7 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
                             onChange={(e) => handleMultiSelectChange(field.field, e.target.value as string[])}
                             label={field.label}
                         >
-                            {(options || availableOptions[field.field] || []).map((option) => (
+                            {availableOptions[field.field]?.map((option) => (
                                 <MenuItem key={option} value={option}>
                                     {option}
                                 </MenuItem>
@@ -238,57 +239,7 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
                         </Select>
                     </FormControl>
                 );
-            }
         }
-    };
-
-    const renderActiveFilters = () => {
-        return (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                {FILTER_CONFIG[type].map(field => {
-                    const value = filters[field.field as keyof DocumentFilter];
-                    if (!value) return null;
-
-                    switch (field.type) {
-                        case 'multi-select':
-                            return (Array.isArray(value) ? value : []).map(v => (
-                                <Chip
-                                    key={`${field.field}-${v}`}
-                                    label={`${field.label}: ${v}`}
-                                    onDelete={() => handleRemoveFilter(field.field as keyof DocumentFilter, v)}
-                                    size="small"
-                                />
-                            ));
-                        case 'number-range': {
-                            const range = value as { min?: number; max?: number };
-                            if (!range.min && !range.max) return null;
-                            return (
-                                <Chip
-                                    key={field.field}
-                                    label={`${field.label}: ${range.min || '0'} - ${range.max || '∞'}`}
-                                    onDelete={() => handleRemoveFilter(field.field as keyof DocumentFilter)}
-                                    size="small"
-                                />
-                            );
-                        }
-                        case 'date-range': {
-                            const dates = value as { start?: string; end?: string };
-                            if (!dates.start && !dates.end) return null;
-                            return (
-                                <Chip
-                                    key={field.field}
-                                    label={`${field.label}: ${dates.start || '∞'} - ${dates.end || '∞'}`}
-                                    onDelete={() => handleRemoveFilter(field.field as keyof DocumentFilter)}
-                                    size="small"
-                                />
-                            );
-                        }
-                        default:
-                            return null;
-                    }
-                })}
-            </Box>
-        );
     };
 
     if (variant === 'toolbar') {

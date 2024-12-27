@@ -18,16 +18,27 @@ def get_engine():
     return create_engine(f'sqlite:///{config.db_path}')
 
 class ExpenseCategory(enum.Enum):
-    """Expense categories from config"""
-    @classmethod
-    def _generate_next_value_(cls, name, start, count, last_values):
-        return name.lower()
-
-    # Dynamically create enum members from config categories
-    locals().update({
-        name.upper().replace(' ', '_'): name
-        for name in config.expense_categories
-    })
+    ADVERTISING = "Advertising"
+    CAR_AND_TRUCK = "Car and truck expenses"
+    COMMISSIONS = "Commissions and fees"
+    CONTRACT_LABOR = "Contract labor"
+    DEPLETION = "Depletion"
+    DEPRECIATION = "Depreciation"
+    EMPLOYEE_BENEFITS = "Employee benefit programs"
+    INSURANCE = "Insurance (other than health)"
+    INTEREST_MORTGAGE = "Interest (mortgage)"
+    INTEREST_OTHER = "Interest (other)"
+    LEGAL = "Legal and professional services"
+    OFFICE = "Office expenses"
+    PENSION = "Pension and profit-sharing plans"
+    RENT = "Rent or lease"
+    REPAIRS = "Repairs and maintenance"
+    SUPPLIES = "Supplies"
+    TAXES = "Taxes and licenses"
+    TRAVEL = "Travel, meals, and entertainment"
+    UTILITIES = "Utilities"
+    WAGES = "Wages"
+    OTHER = "Other"
 
 class Receipt(Base):
     """Receipt database model"""

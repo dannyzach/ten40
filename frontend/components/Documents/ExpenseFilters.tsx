@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
     Box,
     Accordion,
@@ -35,29 +35,19 @@ export interface ExpenseFilter {
 interface ExpenseFiltersProps {
     filters: ExpenseFilter;
     onFilterChange: (filters: ExpenseFilter) => void;
+    availableFilters: {
+        vendors: string[];
+        paymentMethods: string[];
+        categories: string[];
+        statuses: string[];
+    };
 }
 
 export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
     filters,
     onFilterChange,
+    availableFilters
 }) => {
-    const [options, setOptions] = useState<{
-        categories: string[];
-        payment_methods: string[];
-        statuses: string[];
-    }>({
-        categories: [],
-        payment_methods: [],
-        statuses: []
-    });
-
-    useEffect(() => {
-        fetch('/api/expense-options')
-            .then(response => response.json())
-            .then(data => setOptions(data))
-            .catch(error => console.error('Error fetching expense options:', error));
-    }, []);
-
     const handleRemoveFilter = (type: keyof ExpenseFilter, value?: string) => {
         const newFilters = { ...filters };
         if (value && Array.isArray(newFilters[type])) {
@@ -156,21 +146,21 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
 
                         {/* Multi-select filters */}
                         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                            {/* Category Select */}
+                            {/* Vendor Select */}
                             <FormControl size="small" sx={{ minWidth: 200 }}>
-                                <InputLabel>Category</InputLabel>
+                                <InputLabel>Vendor</InputLabel>
                                 <Select
                                     multiple
-                                    value={filters.categories || []}
+                                    value={filters.vendor || []}
                                     onChange={(e) => onFilterChange({
                                         ...filters,
-                                        categories: e.target.value as string[]
+                                        vendor: e.target.value as string[]
                                     })}
-                                    label="Category"
+                                    label="Vendor"
                                 >
-                                    {options.categories.map((category) => (
-                                        <MenuItem key={category} value={category}>
-                                            {category}
+                                    {availableFilters.vendors.map((vendor) => (
+                                        <MenuItem key={vendor} value={vendor}>
+                                            {vendor}
                                         </MenuItem>
                                     ))}
                                 </Select>
@@ -188,7 +178,7 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
                                     })}
                                     label="Payment Method"
                                 >
-                                    {options.payment_methods.map((method) => (
+                                    {availableFilters.paymentMethods.map((method) => (
                                         <MenuItem key={method} value={method}>
                                             {method}
                                         </MenuItem>
@@ -196,21 +186,21 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
                                 </Select>
                             </FormControl>
 
-                            {/* Status Select */}
+                            {/* Category Select */}
                             <FormControl size="small" sx={{ minWidth: 200 }}>
-                                <InputLabel>Status</InputLabel>
+                                <InputLabel>Category</InputLabel>
                                 <Select
                                     multiple
-                                    value={filters.status || []}
+                                    value={filters.categories || []}
                                     onChange={(e) => onFilterChange({
                                         ...filters,
-                                        status: e.target.value as string[]
+                                        categories: e.target.value as string[]
                                     })}
-                                    label="Status"
+                                    label="Category"
                                 >
-                                    {options.statuses.map((status) => (
-                                        <MenuItem key={status} value={status}>
-                                            {status}
+                                    {availableFilters.categories.map((category) => (
+                                        <MenuItem key={category} value={category}>
+                                            {category}
                                         </MenuItem>
                                     ))}
                                 </Select>
