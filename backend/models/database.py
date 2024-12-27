@@ -17,28 +17,11 @@ def get_engine():
         os.makedirs(db_dir)
     return create_engine(f'sqlite:///{config.db_path}')
 
-class ExpenseCategory(enum.Enum):
-    ADVERTISING = "Advertising"
-    CAR_AND_TRUCK = "Car and truck expenses"
-    COMMISSIONS = "Commissions and fees"
-    CONTRACT_LABOR = "Contract labor"
-    DEPLETION = "Depletion"
-    DEPRECIATION = "Depreciation"
-    EMPLOYEE_BENEFITS = "Employee benefit programs"
-    INSURANCE = "Insurance (other than health)"
-    INTEREST_MORTGAGE = "Interest (mortgage)"
-    INTEREST_OTHER = "Interest (other)"
-    LEGAL = "Legal and professional services"
-    OFFICE = "Office expenses"
-    PENSION = "Pension and profit-sharing plans"
-    RENT = "Rent or lease"
-    REPAIRS = "Repairs and maintenance"
-    SUPPLIES = "Supplies"
-    TAXES = "Taxes and licenses"
-    TRAVEL = "Travel, meals, and entertainment"
-    UTILITIES = "Utilities"
-    WAGES = "Wages"
-    OTHER = "Other"
+# Dynamically create ExpenseCategory enum from config
+ExpenseCategory = enum.Enum(
+    'ExpenseCategory',
+    {category.upper().replace(' ', '_'): category for category in config.expense_categories}
+)
 
 class Receipt(Base):
     """Receipt database model"""
@@ -55,9 +38,9 @@ class Receipt(Base):
     status = Column(String(20), nullable=False, default='pending')
     # Relationship to change history
     changes = relationship(
-    "ReceiptChangeHistory",
-    back_populates="receipt",
-    cascade="all, delete-orphan"
+        "ReceiptChangeHistory",
+        back_populates="receipt",
+        cascade="all, delete-orphan"
     )
 
     def __init__(self, **kwargs):
@@ -79,7 +62,6 @@ class Receipt(Base):
             content_lower = {k.lower(): v for k, v in flattened.items()}
             
             # Set fields directly from content, defaulting to 'Missing'
-
             self.vendor = content_lower.get('vendor') or self.vendor or 'Missing'
             self.amount = content_lower.get('amount') or self.amount or 'Missing'
             self.date = content_lower.get('date') or self.date or 'Missing'
@@ -99,7 +81,7 @@ class Receipt(Base):
             'amount': self.amount or 'Missing',
             'date': self.date or 'Missing',
             'payment_method': self.payment_method or 'Missing',
-            'category': self.category or 'Other',
+            'category': self.category or 'Other Expenses',
             'content': self.content,
             'status': self.status
         }

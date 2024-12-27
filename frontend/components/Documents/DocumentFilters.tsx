@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Accordion,
@@ -27,6 +27,13 @@ interface FilterField {
     options?: string[]; // For multi-select
 }
 
+interface FilterOptions {
+    categories: string[];
+    payment_methods: string[];
+    statuses: string[];
+    vendors: string[];
+}
+
 const FILTER_CONFIG: Record<DocumentType, FilterField[]> = {
     'W-2': [
         { type: 'multi-select', label: 'Employer', field: 'employer' },
@@ -45,8 +52,8 @@ const FILTER_CONFIG: Record<DocumentType, FilterField[]> = {
         { type: 'multi-select', label: 'Vendor', field: 'vendor' },
         { type: 'number-range', label: 'Amount', field: 'amountRange' },
         { type: 'date-range', label: 'Date', field: 'dateRange' },
-        { type: 'multi-select', label: 'Payment Method', field: 'paymentMethods' },
-        { type: 'multi-select', label: 'Category', field: 'categories' },
+        { type: 'multi-select', label: 'Payment Method', field: 'paymentMethod' },
+        { type: 'multi-select', label: 'Expense Type', field: 'category' },
         { type: 'multi-select', label: 'Status', field: 'status' }
     ],
     'Donations': [
@@ -62,18 +69,59 @@ interface DocumentFiltersProps {
     type: DocumentType;
     filters: DocumentFilter;
     onFilterChange: (filters: DocumentFilter) => void;
-    availableOptions: Record<string, string[]>; // Field name to available options
     variant?: 'default' | 'toolbar';
+    availableOptions?: Record<string, string[]>;
 }
 
 export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
     type,
     filters,
     onFilterChange,
-    availableOptions,
-    variant = 'default'
+    variant = 'default',
+    availableOptions = {}
 }) => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+        categories: [],
+        payment_methods: [],
+        statuses: [],
+        vendors: []
+    });
+
+    useEffect(() => {
+        // Fetch filter options from the backend
+        const fetchOptions = async () => {
+            try {
+                const response = await fetch('/api/options');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch options');
+                }
+                const data = await response.json();
+                setFilterOptions(data);
+            } catch (error) {
+                console.error('Error fetching filter options:', error);
+            }
+        };
+
+        fetchOptions();
+    }, []);
+
+    const getOptionsForField = (field: string): string[] => {
+        if (!availableOptions) return [];
+        
+        switch (field) {
+            case 'category':
+                return availableOptions.categories || [];
+            case 'paymentMethod':
+                return availableOptions.payment_methods || [];
+            case 'status':
+                return availableOptions.statuses || [];
+            case 'vendor':
+                return availableOptions.vendors || [];
+            default:
+                return [];
+        }
+    };
 
     const handleNumberRangeChange = (field: string, bound: 'min' | 'max', value: string) => {
         const numValue = value ? Number(value) : undefined;
@@ -231,7 +279,7 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
                             onChange={(e) => handleMultiSelectChange(field.field, e.target.value as string[])}
                             label={field.label}
                         >
-                            {availableOptions[field.field]?.map((option) => (
+                            {getOptionsForField(field.field).map((option) => (
                                 <MenuItem key={option} value={option}>
                                     {option}
                                 </MenuItem>

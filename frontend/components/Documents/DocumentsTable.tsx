@@ -40,7 +40,12 @@ import {
 import { documentsApi } from '@/lib/api/documents';
 import { useRouter } from 'next/router';
 import { ImageViewer } from '@/components/ImageViewer';
-import { DocumentFilter } from '@/types/filters';
+import { DocumentFilter, 
+    W2Filter, 
+    Form1099Filter, 
+    ExpenseFilter, 
+    DonationFilter 
+} from '@/types/filters';
 import { DocumentFilters } from './DocumentFilters';
 import { useSearch } from '@/contexts/SearchContext';
 import { EditableCell } from './EditableCell';
@@ -51,7 +56,7 @@ import { enUS } from 'date-fns/locale';
 type ColumnId<T> = keyof T;
 
 interface Column<T extends Document = Document> {
-  id: ColumnId<T>;
+  id: keyof T | 'actions';
   label: string;
   minWidth?: number;
   align?: 'left' | 'right' | 'center';
@@ -129,20 +134,24 @@ const COLUMNS: DocumentColumns = {
       minWidth: 130,
       editable: true,
       editType: 'select',
-      options: ['credit_card', 'debit_card', 'cash', 'check', 'other']
+      options: ['Credit Card', 'Debit Card', 'Cash', 'Check', 'Wire Transfer', 'Other']
     },
     { 
-      id: 'expenseType',
-      label: 'Expense Category',
+      id: 'category' as keyof ExpenseDocument,
+      label: 'Expense Type',
       minWidth: 150,
-      editable: false
+      editable: true,
+      editType: 'select',
+      options: [] // Will be populated from backend /options endpoint
     },
     { 
-      id: 'status',
+      id: 'status' as keyof ExpenseDocument,
       label: 'Status',
       minWidth: 100,
       align: 'center',
-      editable: false
+      editable: true,
+      editType: 'select',
+      options: [] // Will be populated from backend /options endpoint
     }
   ],
   'Donations': [
@@ -258,7 +267,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [availableOptions, setAvailableOptions] = useState<Record<string, string[]>>({});
     const { searchQuery } = useSearch();
-    const [selected, setSelected] = useState<number[]>([]);
+    const [selected, setSelected] = useState<string[]>([]);
     const [deleteSnackbar, setDeleteSnackbar] = useState({
         open: false,
         message: ''
@@ -270,6 +279,13 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         message: string;
         type: 'success' | 'error';
     }>({ show: false, message: '', type: 'success' });
+    const [columns, setColumns] = useState(() => ({
+        'W-2': COLUMNS['W-2'],
+        '1099': COLUMNS['1099'],
+        'Expenses': COLUMNS['Expenses'],
+        'Donations': COLUMNS['Donations']
+    }));
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     useEffect(() => {
         fetchDocuments();
@@ -325,6 +341,34 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         setSelected([]);
     }, [type]);
 
+    useEffect(() => {
+        const fetchOptions = async () => {
+            try {
+                const response = await fetch('/api/options');
+                if (!response.ok) throw new Error('Failed to fetch options');
+                const data = await response.json();
+                
+                // Update the columns with the fetched options
+                setColumns(prev => ({
+                    ...prev,
+                    'Expenses': prev['Expenses'].map(column => {
+                        if (column.id === 'category') {
+                            return { ...column, options: data.categories || [] };
+                        }
+                        if (column.id === 'status') {
+                            return { ...column, options: data.statuses || [] };
+                        }
+                        return column;
+                    })
+                }));
+            } catch (error) {
+                console.error('Error fetching options:', error);
+            }
+        };
+
+        fetchOptions();
+    }, []);
+
     const fetchDocuments = async () => {
         setLoading(true);
         setError(null);
@@ -362,142 +406,43 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
     }, [orderBy, order]);
 
     const getFilteredDocuments = () => {
-        let filtered = documents;
+        if (!documents) return [];
 
-        // Apply type-specific filters
-        switch (type) {
-            case 'W-2':
-                const w2Filters = filters as W2Filter;
-                if (w2Filters.employer?.length) {
-                    filtered = filtered.filter(doc => 
-                        doc.type === 'W-2' && 
-                        w2Filters.employer?.includes(doc.employer)
-                    );
-                }
-                if (w2Filters.wageRange) {
-                    const { min, max } = w2Filters.wageRange;
-                    filtered = filtered.filter(doc => {
-                        if (doc.type !== 'W-2') return false;
-                        return (!min || doc.wages >= min) && (!max || doc.wages <= max);
-                    });
-                }
-                if (w2Filters.withHoldingRange) {
-                    const { min, max } = w2Filters.withHoldingRange;
-                    filtered = filtered.filter(doc => {
-                        if (doc.type !== 'W-2') return false;
-                        return (!min || doc.fedWithholding >= min) && (!max || doc.fedWithholding <= max);
-                    });
-                }
-                break;
+        return documents.filter((doc) => {
+            if (doc.type !== type) return false;
 
-            case '1099':
-                const form1099Filters = filters as Form1099Filter;
-                if (form1099Filters.employer?.length) {
-                    filtered = filtered.filter(doc => 
-                        doc.type === '1099' && 
-                        form1099Filters.employer?.includes(doc.employer)
-                    );
+            // Handle different document types
+            switch (doc.type) {
+                case 'W-2': {
+                    const w2Filter = filters as W2Filter;
+                    const w2Doc = doc as W2Document;
+                    
+                    if (w2Filter.employer?.length && !w2Filter.employer.includes(w2Doc.employer)) return false;
+                    if (w2Filter.wageRange?.min && w2Doc.wages < w2Filter.wageRange.min) return false;
+                    if (w2Filter.wageRange?.max && w2Doc.wages > w2Filter.wageRange.max) return false;
+                    break;
                 }
-                if (form1099Filters.amountRange) {
-                    const { min, max } = form1099Filters.amountRange;
-                    filtered = filtered.filter(doc => {
-                        if (doc.type !== '1099') return false;
-                        return (!min || doc.nonEmpCompensation >= min) && 
-                               (!max || doc.nonEmpCompensation <= max);
-                    });
+                case 'Expenses': {
+                    const expenseFilter = filters as ExpenseFilter;
+                    const expenseDoc = doc as ExpenseDocument;
+                    
+                    if (expenseFilter.vendor?.length && !expenseFilter.vendor.includes(expenseDoc.vendor)) return false;
+                    if (expenseFilter.amountRange?.min && expenseDoc.amount < expenseFilter.amountRange.min) return false;
+                    if (expenseFilter.amountRange?.max && expenseDoc.amount > expenseFilter.amountRange.max) return false;
+                    if (expenseFilter.paymentMethod?.length && !expenseFilter.paymentMethod.includes(expenseDoc.payment_method)) return false;
+                    if (expenseFilter.category?.length && !expenseFilter.category.includes(expenseDoc.category)) return false;
+                    break;
                 }
-                break;
+                // ... other cases
+            }
 
-            case 'Donations':
-                const donationFilters = filters as DonationFilter;
-                if (donationFilters.charityName?.length) {
-                    filtered = filtered.filter(doc => 
-                        doc.type === 'Donations' && 
-                        donationFilters.charityName?.includes(doc.charityName)
-                    );
-                }
-                if (donationFilters.donationType?.length) {
-                    filtered = filtered.filter(doc =>
-                        doc.type === 'Donations' &&
-                        donationFilters.donationType?.includes(doc.donationType)
-                    );
-                }
-                if (donationFilters.amountRange) {
-                    const { min, max } = donationFilters.amountRange;
-                    filtered = filtered.filter(doc => {
-                        if (doc.type !== 'Donations') return false;
-                        return (!min || doc.amount >= min) && (!max || doc.amount <= max);
-                    });
-                }
-                break;
+            // Common filters
+            if (filters.status?.length && !filters.status.includes(doc.status)) return false;
+            if (filters.dateRange?.start && new Date(doc.uploadDate) < new Date(filters.dateRange.start)) return false;
+            if (filters.dateRange?.end && new Date(doc.uploadDate) > new Date(filters.dateRange.end)) return false;
 
-            case 'Expenses':
-                const expenseFilters = filters as ExpenseFilter;
-                
-                // Filter by vendor
-                if (expenseFilters.vendor?.length) {
-                    filtered = filtered.filter(doc => 
-                        doc.type === 'Expenses' && 
-                        expenseFilters.vendor?.includes(doc.vendor)
-                    );
-                }
-
-                // Filter by amount range
-                if (expenseFilters.amountRange) {
-                    const { min, max } = expenseFilters.amountRange;
-                    filtered = filtered.filter(doc => {
-                        if (doc.type !== 'Expenses') return false;
-                        const amount = typeof doc.amount === 'string' 
-                            ? parseFloat(doc.amount.replace(/[^0-9.-]+/g, ''))
-                            : doc.amount;
-                        return (!min || amount >= min) && (!max || amount <= max);
-                    });
-                }
-
-                // Filter by date range
-                if (expenseFilters.dateRange) {
-                    const { start, end } = expenseFilters.dateRange;
-                    filtered = filtered.filter(doc => {
-                        if (doc.type !== 'Expenses') return false;
-                        if (!isValidDate(doc.date)) return false;
-                        const date = new Date(doc.date).getTime();
-                        return (!start || date >= new Date(start).getTime()) && 
-                               (!end || date <= new Date(end).getTime());
-                    });
-                }
-
-                // Filter by payment method
-                if (expenseFilters.paymentMethods?.length) {
-                    filtered = filtered.filter(doc =>
-                        doc.type === 'Expenses' &&
-                        doc.payment_method &&
-                        expenseFilters.paymentMethods?.includes(doc.payment_method)
-                    );
-                }
-
-                // Filter by category
-                if (expenseFilters.categories?.length) {
-                    filtered = filtered.filter(doc =>
-                        doc.type === 'Expenses' &&
-                        doc.expenseType &&
-                        expenseFilters.categories?.includes(doc.expenseType)
-                    );
-                }
-                break;
-        }
-
-        // Apply global search
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(doc => {
-                const searchableValues = Object.values(doc)
-                    .filter(value => typeof value === 'string' || typeof value === 'number')
-                    .map(value => String(value).toLowerCase());
-                return searchableValues.some(value => value.includes(query));
-            });
-        }
-
-        return filtered;
+            return true;
+        });
     };
 
     // Add sorting logic
@@ -561,58 +506,34 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         });
     }, [getFilteredDocuments, orderBy, order]);
 
-    const renderActions = (document: Document) => {
-        if (document.type === 'Expenses') {
-            return (
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                    <Tooltip title="View Receipt">
-                        <IconButton
-                            size="small"
-                            onClick={(e) => {
-                                e.stopPropagation(); // Prevent row click
-                                handleEdit(document.id);
-                            }}
-                        >
-                            <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Edit">
-                        <IconButton
-                            size="small"
-                            onClick={(e) => {
-                                e.stopPropagation(); // Prevent row click
-                                handleEdit(document.id);
-                            }}
-                        >
-                            <EditIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                </Box>
-            );
-        }
-
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                <Tooltip title="Approve">
-                    <IconButton
-                        size="small"
-                        onClick={() => handleApprove(document.id)}
-                        disabled={document.status === 'approved'}
-                    >
-                        <CheckCircleIcon fontSize="small" />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title="Edit">
-                    <IconButton
-                        size="small"
-                        onClick={() => handleEdit(document.id)}
-                    >
-                        <EditIcon fontSize="small" />
-                    </IconButton>
-                </Tooltip>
-            </Box>
-        );
-    };
+    const renderActions = (document: Document) => (
+        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+            <Tooltip title="View Receipt">
+                <IconButton
+                    size="small"
+                    onClick={() => setSelectedImage(document.image_path)}
+                    sx={{ 
+                        color: 'text.secondary',
+                        '&:hover': { color: 'primary.main' }
+                    }}
+                >
+                    <VisibilityIcon fontSize="small" />
+                </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete">
+                <IconButton
+                    size="small"
+                    onClick={() => handleDelete(document.id)}
+                    sx={{ 
+                        color: 'text.secondary',
+                        '&:hover': { color: 'error.main' }
+                    }}
+                >
+                    <DeleteIcon fontSize="small" />
+                </IconButton>
+            </Tooltip>
+        </Box>
+    );
 
     const filteredDocuments = useMemo(() => 
         getFilteredDocuments(), 
@@ -633,9 +554,9 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         setSelected([]);
     };
 
-    const handleClick = (id: number) => {
+    const handleClick = (id: string) => {
         const selectedIndex = selected.indexOf(id);
-        let newSelected: number[] = [];
+        let newSelected: string[] = [];
 
         if (selectedIndex === -1) {
             newSelected = newSelected.concat(selected, id);
@@ -646,7 +567,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         } else if (selectedIndex > 0) {
             newSelected = newSelected.concat(
                 selected.slice(0, selectedIndex),
-                selected.slice(selectedIndex + 1),
+                selected.slice(selectedIndex + 1)
             );
         }
 
@@ -682,86 +603,64 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         }
     };
 
-    const renderCell = (document: Document, column: Column) => {
-        const value = document[column.id];
+    const renderCell = (document: Document, column: Column<typeof document>) => {
+        if (column.id === 'actions') {
+            return renderActions(document);
+        }
+
+        const value = document[column.id as keyof typeof document];
         
-        if (document.type === 'Expenses' && column.editable) {
-            const expenseDoc = document as ExpenseDocument;
-            const columnKey = column.id as keyof ExpenseDocument;
-            
-            // Format the initial value for dates
-            let initialValue = expenseDoc[columnKey];
-            if (column.editType === 'date') {
-                console.log('DocumentsTable.renderCell: Processing date field:', {
-                    originalValue: initialValue,
-                    type: typeof initialValue,
-                    columnKey
-                });
-            }
-            
+        if (column.editable) {
             return (
                 <EditableCell
-                    key={column.id}
-                    value={initialValue}
-                    type={column.editType as 'text' | 'date' | 'amount' | 'select'}
+                    value={value}
+                    type={column.editType || 'text'}
                     options={column.options}
-                    align={column.align}
-                    format={column.format}
-                    onSave={async (newValue: string) => {
-                        try {
-                            console.log('DocumentsTable.onSave: Updating field:', {
-                                documentId: document.id,
-                                field: columnKey,
-                                oldValue: initialValue,
-                                newValue,
-                                type: column.editType
-                            });
-                            
-                            // Format the value based on type before sending to API
-                            const formattedValue = column.editType === 'amount' 
-                                ? parseFloat(newValue.replace(/[^\d.-]/g, ''))
-                                : newValue;
-                            
-                            console.log('DocumentsTable.onSave: Sending to API:', {
-                                documentId: document.id,
-                                updates: { [columnKey]: formattedValue }
-                            });
-                            
-                            const updates = { [columnKey]: formattedValue };
-                            const updatedDoc = await updateDocument(document.id, updates);
-                            
-                            console.log('DocumentsTable.onSave: Received API response:', {
-                                documentId: document.id,
-                                updatedDoc
-                            });
-                            
-                            // Update all fields in the document with the response
-                            setDocuments(prevDocs =>
-                                prevDocs.map(doc =>
-                                    doc.id === document.id 
-                                        ? { ...doc, ...updatedDoc }
-                                        : doc
-                                )
-                            );
-                        } catch (error) {
-                            console.error('DocumentsTable.onSave: Update failed:', {
-                                error,
-                                documentId: document.id,
-                                field: columnKey,
-                                value: newValue
-                            });
-                            throw error;
-                        }
+                    onSave={async (newValue) => {
+                        await handleUpdateField(document.id, column.id as string, newValue);
                     }}
+                    format={column.format}
+                    align={column.align}
                 />
             );
         }
 
-        return (
-            <TableCell key={column.id} align={column.align}>
-                {column.format && value !== undefined ? column.format(value) : value}
-            </TableCell>
-        );
+        return column.format ? column.format(value) : value;
+    };
+
+    const handleUpdateField = async (documentId: string, field: string, value: any) => {
+        try {
+            console.log('DocumentsTable.handleUpdateField: Updating field:', {
+                documentId,
+                field,
+                value
+            });
+            
+            // Format the value based on type before sending to API
+            const formattedValue = typeof value === 'string' && field === 'amount'
+                ? parseFloat(value.replace(/[^\d.-]/g, ''))
+                : value;
+            
+            const updates = { [field]: formattedValue };
+            const updatedDoc = await updateDocument(documentId, updates);
+            
+            // Update all fields in the document with the response
+            setDocuments(prevDocs =>
+                prevDocs.map(doc =>
+                    doc.id === documentId 
+                        ? { ...doc, ...updatedDoc }
+                        : doc
+                )
+            );
+        } catch (error) {
+            console.error('DocumentsTable.handleUpdateField: Update failed:', {
+                error,
+                documentId,
+                field,
+                value
+            });
+            throw error;
+        }
     };
 
     if (loading) {
@@ -827,7 +726,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                         <TableHead>
                             <TableRow>
                                 <TableCell padding="checkbox" />
-                                {COLUMNS[type].map((column) => (
+                                {columns[type].map((column) => (
                                     <TableCell
                                         key={column.id}
                                         align={column.align}
@@ -868,7 +767,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                                             onChange={() => handleClick(document.id)}
                                         />
                                     </TableCell>
-                                    {COLUMNS[type].map((column) => renderCell(document, column))}
+                                    {columns[type].map((column) => renderCell(document, column))}
                                     <TableCell align="right">
                                         {renderActions(document)}
                                     </TableCell>
@@ -922,6 +821,13 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                     {bulkActionStatus.message}
                 </Alert>
             </Snackbar>
+
+            {selectedImage && (
+                <ImageViewer
+                    imagePath={selectedImage}
+                    onClose={() => setSelectedImage(null)}
+                />
+            )}
         </>
     );
 }; 

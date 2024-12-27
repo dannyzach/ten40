@@ -1,5 +1,6 @@
 import pytest
 from models.database import Receipt, get_db
+from backend.config import config
 
 def test_update_receipt_fields(client):
     """Test updating receipt fields"""
@@ -22,7 +23,7 @@ def test_update_receipt_fields(client):
     update_data = {
         "vendor": "New Vendor",
         "amount": "25.50",
-        "category": "office_supplies"
+        "category": "Office Expenses"
     }
 
     response = client.patch(f'/api/receipts/{receipt_id}/update', json=update_data)
@@ -33,7 +34,7 @@ def test_update_receipt_fields(client):
         updated_receipt = db.query(Receipt).get(receipt_id)
         assert updated_receipt.vendor == "New Vendor"
         assert updated_receipt.amount == "25.50"
-        assert updated_receipt.category == "office_supplies"
+        assert updated_receipt.category == "Office Expenses"
 
     # Clean up
     with get_db() as db:
@@ -56,7 +57,7 @@ def test_partial_update_receipt(client):
             amount="10.00",
             date="2023-12-16",
             payment_method="CASH",
-            category="Other",
+            category="Other Expenses",
             content={"test": "data"}
         )
         db.add(receipt)
@@ -72,7 +73,7 @@ def test_partial_update_receipt(client):
         updated_receipt = db.query(Receipt).get(receipt_id)
         assert updated_receipt.vendor == "New Vendor"
         assert updated_receipt.amount == "10.00"  # unchanged
-        assert updated_receipt.category == "Other"  # unchanged
+        assert updated_receipt.category == "Other Expenses"  # unchanged
 
     # Clean up
     with get_db() as db:
@@ -103,3 +104,76 @@ def test_update_invalid_fields(client):
     with get_db() as db:
         db.query(Receipt).filter_by(id=receipt_id).delete()
         db.commit()
+
+def test_validate_category(client):
+    """Test category validation in receipt updates"""
+    # Create a test receipt
+    response = client.post('/api/upload', data={
+        'file': (open('tests/test_receipt_debug.png', 'rb'), 'test_receipt.png')
+    })
+    assert response.status_code == 200
+    receipt_id = response.json['id']
+    
+    # Test valid category
+    response = client.patch(f'/api/receipts/{receipt_id}/update', json={
+        'category': config.expense_categories[0]
+    })
+    assert response.status_code == 200
+    
+    # Test invalid category
+    response = client.patch(f'/api/receipts/{receipt_id}/update', json={
+        'category': 'Invalid Category'
+    })
+    assert response.status_code == 400
+    assert 'category' in response.json['details']
+
+def test_validate_payment_method(client):
+    """Test payment method validation in receipt updates"""
+    # Create a test receipt
+    response = client.post('/api/upload', data={
+        'file': (open('tests/test_receipt_debug.png', 'rb'), 'test_receipt.png')
+    })
+    assert response.status_code == 200
+    receipt_id = response.json['id']
+    
+    # Test valid payment method
+    response = client.patch(f'/api/receipts/{receipt_id}/update', json={
+        'payment_method': config.payment_methods[0]
+    })
+    assert response.status_code == 200
+    
+    # Test invalid payment method
+    response = client.patch(f'/api/receipts/{receipt_id}/update', json={
+        'payment_method': 'Invalid Method'
+    })
+    assert response.status_code == 400
+    assert 'payment_method' in response.json['details']
+
+def test_validate_status(client):
+    """Test status validation and transitions in receipt updates"""
+    # Create a test receipt
+    response = client.post('/api/upload', data={
+        'file': (open('tests/test_receipt_debug.png', 'rb'), 'test_receipt.png')
+    })
+    assert response.status_code == 200
+    receipt_id = response.json['id']
+    
+    # Test valid status transition: pending -> approved
+    response = client.patch(f'/api/receipts/{receipt_id}/update', json={
+        'status': config.receipt_statuses[1]  # 'Approved'
+    })
+    assert response.status_code == 200
+    
+    # Test invalid status transition: approved -> approved (no change)
+    response = client.patch(f'/api/receipts/{receipt_id}/update', json={
+        'status': config.receipt_statuses[1]  # 'Approved'
+    })
+    assert response.status_code == 400
+    assert 'status' in response.json['details']
+    
+    # Test invalid status value
+    response = client.patch(f'/api/receipts/{receipt_id}/update', json={
+        'status': 'invalid_status'
+    })
+    assert response.status_code == 400
+    assert 'status' in response.json['details']

@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 import sys
 import logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, scoped_session
 from flask import Flask, g
 from werkzeug.exceptions import HTTPException
@@ -18,7 +18,7 @@ sys.path.insert(0, backend_dir)
 
 # Import after path setup
 from models.database import Base
-from tests.test_config import config
+from backend.config import config
 from api.routes import api_bp
 
 # Configure logging
@@ -44,12 +44,21 @@ def tables(engine):
 def db_session(engine):
     """Create a new database session for a test"""
     connection = engine.connect()
+    
+    # Start a new transaction
     transaction = connection.begin()
+    
+    # Configure the session
     Session = sessionmaker(bind=connection)
     session = Session()
 
+    # Ensure we're starting with a clean slate
+    session.execute(text('DELETE FROM receipts'))
+    session.commit()
+
     yield session
 
+    # Rollback everything and close
     session.close()
     transaction.rollback()
     connection.close()

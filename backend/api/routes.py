@@ -84,26 +84,23 @@ def validate_field_values(data, receipt_id):
             logger.error(f"Unexpected error validating date: {str(e)}, received value: {data['date']!r}, type: {type(data['date'])}")
             return {'date': "Invalid date format"}
     
-    # Validate payment_method - case insensitive
-    valid_payment_methods = ["credit_card", "debit_card", "cash", "check", "wire_transfer", "other"]
-    if 'payment_method' in data:
-        payment_method = data['payment_method'].lower()
-        if payment_method not in valid_payment_methods:
-            errors['payment_method'] = f"Payment method must be one of: {', '.join(valid_payment_methods)}"
-    
     # Validate category - case insensitive
-    valid_categories = ["office_supplies", "travel", "meals", "utilities", "software", "hardware", "other"]
     if 'category' in data:
         category = data['category'].lower()
-        if category not in valid_categories:
-            errors['category'] = f"Category must be one of: {', '.join(valid_categories)}"
+        if category not in [cat.lower() for cat in config.expense_categories]:
+            errors['category'] = f"Category must be one of: {', '.join(config.expense_categories)}"
+    
+    # Validate payment_method - case insensitive
+    if 'payment_method' in data:
+        payment_method = data['payment_method'].lower()
+        if payment_method not in [pm.lower() for pm in config.payment_methods]:
+            errors['payment_method'] = f"Payment method must be one of: {', '.join(config.payment_methods)}"
     
     # Validate status - case insensitive and transitions
-    valid_statuses = ["pending", "approved", "rejected"]
     if 'status' in data:
         new_status = data['status'].lower()
-        if new_status not in valid_statuses:
-            errors['status'] = f"Status must be one of: {', '.join(valid_statuses)}"
+        if new_status not in [status.lower() for status in config.receipt_statuses]:
+            errors['status'] = f"Status must be one of: {', '.join(config.receipt_statuses)}"
         else:
             # Get current status if updating an existing receipt
             try:
@@ -437,3 +434,21 @@ def categorize_text():
             status_code=422,
             details={'categorization_error': str(e)}
         )
+
+@api_bp.route('/options', methods=['GET'])
+def get_options():
+    """Get all available options for filters"""
+    try:
+        with get_db() as db:
+            # Get unique vendors from database
+            vendors = [r[0] for r in db.query(Receipt.vendor).distinct().all() if r[0] != 'Missing']
+            
+            return jsonify({
+                'categories': config.expense_categories,
+                'payment_methods': config.payment_methods,
+                'statuses': config.receipt_statuses,
+                'vendors': sorted(vendors)
+            })
+    except Exception as e:
+        logger.error(f"Failed to get options: {str(e)}")
+        raise APIError("Failed to fetch options", status_code=500, details={'error': str(e)})

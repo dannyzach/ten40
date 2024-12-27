@@ -94,7 +94,7 @@ class TestReceiptAPI(unittest.TestCase):
         update_data = {
             'vendor': 'Updated Store',
             'amount': '99.99',
-            'category': 'office_supplies'
+            'category': 'Office Expenses'
         }
         
         response = requests.patch(
