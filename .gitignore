@@ -55,3 +55,6 @@ package-lock.json
 
 # Backend
 backend/Receipts/
+
+# Repomix
+repomix-output.txt
