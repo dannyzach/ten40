@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
     Table,
     TableBody,
@@ -23,6 +23,10 @@ import {
     DialogContentText,
     DialogActions,
     Button,
+    Select,
+    MenuItem,
+    ClickAwayListener,
+    SelectChangeEvent,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EditIcon from '@mui/icons-material/Edit';
@@ -636,15 +640,20 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                 value
             });
             
-            // Format the value based on type before sending to API
-            const formattedValue = typeof value === 'string' && field === 'amount'
-                ? parseFloat(value.replace(/[^\d.-]/g, ''))
-                : value;
+            // Format the value based on field type
+            let formattedValue = value;
+            if (field === 'amount') {
+                formattedValue = typeof value === 'string' 
+                    ? parseFloat(value.replace(/[^\d.-]/g, ''))
+                    : value;
+            } else if (field === 'status') {
+                // Ensure proper case for status values
+                formattedValue = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+            }
             
             const updates = { [field]: formattedValue };
             const updatedDoc = await updateDocument(documentId, updates);
             
-            // Update all fields in the document with the response
             setDocuments(prevDocs =>
                 prevDocs.map(doc =>
                     doc.id === documentId 

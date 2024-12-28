@@ -2,17 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   TextField,
   TableCell,
-  ClickAwayListener,
   Select,
   MenuItem,
   InputAdornment,
   Box,
+  SelectChangeEvent,
 } from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { format, parse, isValid } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { useClickAway } from '@/hooks/useClickAway';
 
 interface EditableCellProps {
   value: string | number | null;
@@ -36,75 +32,38 @@ export const EditableCell: React.FC<EditableCellProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setEditValue(value != null ? value.toString() : '');
-  }, [value]);
-
-  const handleClick = () => {
-    if (!disabled) {
-      console.log('EditableCell: Starting edit mode:', { type, value });
-      setIsEditing(true);
-    }
-  };
+  const cellRef = useRef<HTMLTableCellElement>(null);
 
   const exitEditMode = () => {
+    console.log('EditableCell: Exiting edit mode:', { 
+      type, 
+      value: editValue,
+      isEditing,
+      timestamp: new Date().getTime()
+    });
     setIsEditing(false);
-    setEditValue(value.toString());
+    setEditValue(value?.toString() ?? '');
     setError(null);
   };
 
-  const handleSave = async () => {
-    if (!isEditing) return;
+  const handleSave = async (event: MouseEvent | TouchEvent) => {
+    console.log('EditableCell: handleSave called:', { 
+      type, 
+      value: editValue,
+      isEditing,
+      eventType: event.type,
+      timestamp: new Date().getTime()
+    });
     
+    if (!isEditing) return;
+
     try {
-      if (type === 'date') {
-        console.log('EditableCell.handleSave: Processing date value:', {
-          editValue,
-          type: typeof editValue
-        });
-        
-        // If the value is empty, don't process it
-        if (!editValue.trim()) {
-          console.log('EditableCell.handleSave: Empty date value, skipping');
-          await onSave('');
-          setError(null);
-          exitEditMode();
-          return;
-        }
-
-        // Try to parse the date
-        const date = parse(editValue.trim(), 'yyyy-MM-dd', new Date(), { locale: enUS });
-        console.log('EditableCell.handleSave: Parsed date:', {
-          date,
-          isValid: isValid(date)
-        });
-
-        if (!isValid(date)) {
-          console.error('EditableCell.handleSave: Invalid date format:', editValue);
-          throw new Error('Please use YYYY-MM-DD format');
-        }
-
-        // Format the date for saving
-        const formattedDate = format(date, 'yyyy-MM-dd', { locale: enUS });
-        console.log('EditableCell.handleSave: Sending formatted date:', formattedDate);
-        
-        await onSave(formattedDate);
-        console.log('EditableCell.handleSave: Date saved successfully');
-        setError(null);
-      } else if (type === 'amount') {
-        const amount = parseFloat(editValue.replace(/[^\d.-]/g, ''));
-        if (isNaN(amount)) {
-          throw new Error('Invalid amount format');
-        }
-        await onSave(amount.toString());
-        setError(null);
-      } else {
+      if (type !== 'select') {
+        console.log('EditableCell: Saving non-select value:', { type, value: editValue });
         await onSave(editValue);
-        setError(null);
+        console.log('EditableCell: Save successful:', { type, value: editValue });
       }
-      exitEditMode();
+      setError(null);
     } catch (err) {
       console.error('EditableCell.handleSave: Error saving value:', {
         error: err,
@@ -113,66 +72,76 @@ export const EditableCell: React.FC<EditableCellProps> = ({
       });
       setError(err instanceof Error ? err.message : 'An error occurred');
       return;
+    } finally {
+      exitEditMode();
     }
   };
 
-  const handleDateChange = (newValue: Date | null) => {
-    console.log('EditableCell.handleDateChange: New date selected:', {
-      newValue,
-      isValid: newValue && isValid(newValue)
+  const listenClickAway = useClickAway(cellRef, (event) => {
+    console.log('EditableCell: Click away detected:', { 
+      type, 
+      value: editValue,
+      isEditing,
+      eventType: event.type,
+      target: (event.target as HTMLElement).tagName,
+      targetClass: (event.target as HTMLElement).className,
+      timestamp: new Date().getTime()
     });
+    handleSave(event);
+  });
 
-    if (newValue && isValid(newValue)) {
-      const formattedDate = format(newValue, 'yyyy-MM-dd', { locale: enUS });
-      console.log('EditableCell.handleDateChange: Formatted date:', formattedDate);
-      setEditValue(formattedDate);
-      setError(null);
-    } else {
-      console.log('EditableCell.handleDateChange: Invalid or null date');
-      setEditValue('');
-      setError('Please select a valid date');
-    }
-  };
+  useEffect(() => {
+    setEditValue(value?.toString() ?? '');
+  }, [value]);
 
-  const parseDate = (dateStr: string) => {
-    console.log('EditableCell.parseDate: Input:', {
-      value: dateStr,
-      type: typeof dateStr
+  const handleClick = (event: React.MouseEvent) => {
+    console.log('EditableCell: Cell clicked:', {
+      type,
+      value,
+      isEditing,
+      timestamp: new Date().getTime()
     });
     
-    try {
-      if (!dateStr || dateStr === 'Invalid Date') {
-        console.log('EditableCell.parseDate: Empty or Invalid Date string');
-        return null;
-      }
-      const trimmedDate = dateStr.trim();
-      console.log('EditableCell.parseDate: Trimmed:', trimmedDate);
-      
-      const date = parse(trimmedDate, 'yyyy-MM-dd', new Date(), { locale: enUS });
-      console.log('EditableCell.parseDate: Parsed result:', {
-        date,
-        isValid: isValid(date)
-      });
-      
-      return isValid(date) ? date : null;
-    } catch (e) {
-      console.error('EditableCell.parseDate: Error:', e);
-      return null;
+    event.stopPropagation();
+    if (!disabled) {
+      console.log('EditableCell: Starting edit mode:', { type, value });
+      setIsEditing(true);
+      listenClickAway(true);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSave();
-    } else if (e.key === 'Escape') {
-      exitEditMode();
+  const handleChange = (
+    event: SelectChangeEvent<string> | React.ChangeEvent<HTMLInputElement>
+  ) => {
+    console.log('EditableCell: handleChange called:', {
+      type,
+      oldValue: editValue,
+      newValue: event.target.value,
+      isEditing,
+      timestamp: new Date().getTime()
+    });
+    
+    event.stopPropagation();
+    const newValue = event.target.value;
+    setEditValue(newValue);
+    
+    if (type === 'select') {
+      console.log('EditableCell: Saving select value:', { type, newValue });
+      onSave(newValue).then(() => {
+        console.log('EditableCell: Save successful:', { type, newValue });
+        setError(null);
+        exitEditMode();
+      }).catch((err) => {
+        console.error('EditableCell: Save failed:', { type, newValue, error: err });
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      });
     }
   };
 
   if (!isEditing) {
     return (
       <TableCell
+        ref={cellRef}
         align={align}
         onClick={handleClick}
         sx={{ 
@@ -190,6 +159,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({
 
   return (
     <TableCell 
+      ref={cellRef}
       align={align} 
       padding="none"
       sx={{
@@ -199,72 +169,53 @@ export const EditableCell: React.FC<EditableCellProps> = ({
         }
       }}
     >
-      <ClickAwayListener onClickAway={handleSave}>
-        <Box sx={{ p: 1 }}>
-          {type === 'date' ? (
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <DatePicker
-                value={parseDate(editValue)}
-                onChange={handleDateChange}
-                format="yyyy-MM-dd"
-                slotProps={{
-                  textField: {
-                    error: !!error,
-                    helperText: error || 'Use format: YYYY-MM-DD',
-                    onKeyDown: handleKeyDown,
-                    size: "small",
-                    fullWidth: true,
-                    inputRef: inputRef,
-                    sx: { backgroundColor: 'background.paper' }
-                  }
+      <Box sx={{ p: 1 }}>
+        {type === 'select' ? (
+          <Select
+            value={editValue}
+            onChange={handleChange}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                exitEditMode();
+              }
+            }}
+            size="small"
+            fullWidth
+            open={isEditing}
+            sx={{ backgroundColor: 'background.paper' }}
+          >
+            {options.map((option) => (
+              <MenuItem 
+                key={option} 
+                value={option}
+                onClick={(e) => {
+                  console.log('EditableCell: MenuItem clicked:', { 
+                    option, 
+                    type,
+                    currentValue: editValue,
+                    isEditing,
+                    timestamp: new Date().getTime()
+                  });
+                  e.stopPropagation();
                 }}
-              />
-            </LocalizationProvider>
-          ) : type === 'amount' ? (
-            <TextField
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              error={!!error}
-              helperText={error}
-              size="small"
-              fullWidth
-              inputRef={inputRef}
-              InputProps={{
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              }}
-              sx={{ backgroundColor: 'background.paper' }}
-            />
-          ) : type === 'select' ? (
-            <Select
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              size="small"
-              fullWidth
-              sx={{ backgroundColor: 'background.paper' }}
-            >
-              {options.map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </Select>
-          ) : (
-            <TextField
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              error={!!error}
-              helperText={error}
-              size="small"
-              fullWidth
-              inputRef={inputRef}
-              sx={{ backgroundColor: 'background.paper' }}
-            />
-          )}
-        </Box>
-      </ClickAwayListener>
+              >
+                {option}
+              </MenuItem>
+            ))}
+          </Select>
+        ) : (
+          <TextField
+            value={editValue}
+            onChange={handleChange}
+            error={!!error}
+            helperText={error}
+            size="small"
+            fullWidth
+            sx={{ backgroundColor: 'background.paper' }}
+          />
+        )}
+      </Box>
     </TableCell>
   );
 }; 
