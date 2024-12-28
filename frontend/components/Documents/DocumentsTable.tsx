@@ -137,7 +137,7 @@ const COLUMNS: DocumentColumns = {
       options: ['Credit Card', 'Debit Card', 'Cash', 'Check', 'Wire Transfer', 'Other']
     },
     { 
-      id: 'category' as keyof ExpenseDocument,
+      id: 'expenseType',
       label: 'Expense Type',
       minWidth: 150,
       editable: true,
@@ -352,7 +352,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                 setColumns(prev => ({
                     ...prev,
                     'Expenses': prev['Expenses'].map(column => {
-                        if (column.id === 'category') {
+                        if (column.id === 'expenseType') {
                             return { ...column, options: data.categories || [] };
                         }
                         if (column.id === 'status') {
@@ -430,7 +430,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                     if (expenseFilter.amountRange?.min && expenseDoc.amount < expenseFilter.amountRange.min) return false;
                     if (expenseFilter.amountRange?.max && expenseDoc.amount > expenseFilter.amountRange.max) return false;
                     if (expenseFilter.paymentMethod?.length && !expenseFilter.paymentMethod.includes(expenseDoc.payment_method)) return false;
-                    if (expenseFilter.category?.length && !expenseFilter.category.includes(expenseDoc.category)) return false;
+                    if (expenseFilter.category?.length && !expenseFilter.category.includes(expenseDoc.expenseType)) return false;
                     break;
                 }
                 // ... other cases
