@@ -220,6 +220,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({
             helperText={error}
             size="small"
             fullWidth
+            type={type}
             sx={{ backgroundColor: 'background.paper' }}
           />
         )}
