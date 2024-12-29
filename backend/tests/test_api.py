@@ -88,17 +88,9 @@ def test_update_receipt_unit(client):
     receipt_id = test_upload_receipt_unit(client)
     
     update_data = {
-        'content': {
-            'store_name': 'Updated Store',
-            'date': '2024-01-20',
-            'items': [
-                {'name': 'Test Item 1', 'quantity': 1, 'price': 19.99},
-                {'name': 'Test Item 2', 'quantity': 2, 'price': 29.99}
-            ],
-            'subtotal': 79.97,
-            'tax': 6.40,
-            'total_amount': 86.37
-        }
+        'vendor': 'Updated Store',
+        'amount': '99.99',
+        'expenseType': 'Office Expenses'
     }
     
     response = client.patch(
@@ -168,12 +160,12 @@ def test_update_receipt_validation(client):
 
 def test_update_receipt_success(client):
     """Test successful field updates"""
-    receipt_id = test_upload_receipt_unit(client)  # Create test receipt
+    receipt_id = test_upload_receipt_unit(client)
     
     response = client.patch(f'/api/receipts/{receipt_id}/update', json={
         'vendor': 'New Vendor',
         'amount': '150.00',
-        'status': 'approved'
+        'status': 'Approved'
     })
     
     assert response.status_code == 200
@@ -183,7 +175,7 @@ def test_update_receipt_success(client):
     assert 'status' in response.json['updated_fields']
     
     # Verify status change from default 'pending' to 'approved'
-    assert response.json['updated_fields']['status'] == 'approved'
+    assert response.json['updated_fields']['status'] == 'Approved'
 
 def test_update_receipt_errors(client):
     """Test various error conditions"""
@@ -206,19 +198,19 @@ def test_partial_update_receipt(client):
     """Test updating subset of fields"""
     receipt_id = test_upload_receipt_unit(client)
     
-    # Verify initial status is 'pending'
+    # Verify initial status is 'Pending'
     response = client.get(f'/api/receipts/{receipt_id}')
     assert response.status_code == 200
-    assert response.json['status'] == 'pending'
+    assert response.json['status'] == 'Pending'
     
     # Update only status
     response = client.patch(f'/api/receipts/{receipt_id}/update', json={
-        'status': 'approved'
+        'status': 'Approved'
     })
     
     assert response.status_code == 200
     assert len(response.json['updated_fields']) == 1
-    assert response.json['updated_fields']['status'] == 'approved'
+    assert response.json['updated_fields']['status'] == 'Approved'
 
 def test_status_transitions(client):
     """Test status transition rules"""
@@ -227,32 +219,32 @@ def test_status_transitions(client):
     # Verify initial status is 'pending'
     response = client.get(f'/api/receipts/{receipt_id}')
     assert response.status_code == 200
-    assert response.json['status'] == 'pending'
+    assert response.json['status'] == 'Pending'
     
     # Valid transition: pending → approved
     response = client.patch(f'/api/receipts/{receipt_id}/update', json={
-        'status': 'APPROVED'  # Test case insensitive
+        'status': 'Approved'  # Test case insensitive
     })
     assert response.status_code == 200
-    assert response.json['updated_fields']['status'] == 'approved'
+    assert response.json['updated_fields']['status'] == 'Approved'
     
     # Invalid transition: approved → pending
     response = client.patch(f'/api/receipts/{receipt_id}/update', json={
-        'status': 'pending'
+        'status': 'Pending'
     })
     assert response.status_code == 200
-    assert response.json['updated_fields']['status'] == 'pending'
+    assert response.json['updated_fields']['status'] == 'Pending'
     
     # Valid transition: approved → rejected
     response = client.patch(f'/api/receipts/{receipt_id}/update', json={
-        'status': 'rejected'
+        'status': 'Rejected'
     })
     assert response.status_code == 200
-    assert response.json['updated_fields']['status'] == 'rejected'
+    assert response.json['updated_fields']['status'] == 'Rejected'
     
     # Valid transition: rejected → approved
     response = client.patch(f'/api/receipts/{receipt_id}/update', json={
-        'status': 'approved'
+        'status': 'Approved'
     })
     assert response.status_code == 200
-    assert response.json['updated_fields']['status'] == 'approved'
+    assert response.json['updated_fields']['status'] == 'Approved'

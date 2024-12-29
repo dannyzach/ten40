@@ -60,7 +60,7 @@ class TestReceiptAPI(unittest.TestCase):
         data = response.json()
         
         # Verify response has required fields
-        required_fields = {'id', 'image_path', 'vendor', 'amount', 'date', 'payment_method', 'category'}
+        required_fields = {'id', 'image_path', 'vendor', 'amount', 'date', 'payment_method', 'expenseType'}
         self.assertTrue(all(field in data for field in required_fields))
         
         return data['id']
@@ -94,7 +94,7 @@ class TestReceiptAPI(unittest.TestCase):
         update_data = {
             'vendor': 'Updated Store',
             'amount': '99.99',
-            'category': 'Office Expenses'
+            'expenseType': 'Office Expenses'
         }
         
         response = requests.patch(

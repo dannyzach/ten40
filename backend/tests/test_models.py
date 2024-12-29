@@ -12,9 +12,9 @@ def test_receipt_model_configuration():
     assert status_column is not None
     assert status_column.type.length == 20
     assert not status_column.nullable
-    assert status_column.default.arg == 'pending'
+    assert status_column.default.arg == 'Pending'
 
     # Test required columns exist
-    required_columns = {'id', 'image_path', 'content', 'status'}
+    required_columns = {'id', 'image_path', 'content', 'status', 'expenseType'}
     actual_columns = set(receipt_table.columns.keys())
     assert required_columns.issubset(actual_columns)
