@@ -35,7 +35,7 @@ class Receipt(Base):
     payment_method = Column(String)
     expenseType = Column(String)  # Changed from category
     content = Column(JSON, nullable=False)
-    status = Column(String(20), nullable=False, default='pending')
+    status = Column(String(20), nullable=False, default='Pending')
     # Relationship to change history
     changes = relationship(
         "ReceiptChangeHistory",

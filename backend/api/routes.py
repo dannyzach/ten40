@@ -86,41 +86,21 @@ def validate_field_values(data, receipt_id):
     
     # Validate expenseType - case insensitive
     if 'expenseType' in data:
-        expenseType = data['expenseType'].lower()
-        if expenseType not in [cat.lower() for cat in config.expense_categories]:
+        expenseType = data['expenseType']
+        if expenseType not in config.expense_categories:
             errors['expenseType'] = f"Expense Type must be one of: {', '.join(config.expense_categories)}"
     
     # Validate payment_method - case insensitive
     if 'payment_method' in data:
-        payment_method = data['payment_method'].lower()
-        if payment_method not in [pm.lower() for pm in config.payment_methods]:
+        payment_method = data['payment_method']
+        if payment_method not in config.payment_methods:
             errors['payment_method'] = f"Payment method must be one of: {', '.join(config.payment_methods)}"
     
-    # Validate status - case insensitive and transitions
+    # Validate status - case insensitive
     if 'status' in data:
-        new_status = data['status'].lower()
-        if new_status not in [status.lower() for status in config.receipt_statuses]:
+        status = data['status']
+        if status not in config.receipt_statuses:
             errors['status'] = f"Status must be one of: {', '.join(config.receipt_statuses)}"
-        else:
-            # Get current status if updating an existing receipt
-            try:
-                with get_db() as db:
-                    receipt = db.query(Receipt).get(receipt_id)
-                    if receipt:
-                        current_status = receipt.status.lower()
-                        valid_transition = False
-                        
-                        if current_status == 'pending':
-                            valid_transition = new_status in ['approved', 'rejected']
-                        elif current_status == 'approved':
-                            valid_transition = new_status in ['pending', 'rejected']
-                        elif current_status == 'rejected':
-                            valid_transition = new_status in ['approved', 'pending']
-                            
-                        if not valid_transition:
-                            errors['status'] = f"Invalid status transition from {current_status} to {new_status}"
-            except Exception as e:
-                logger.error(f"Error checking status transition: {str(e)}")
     
     return errors
 
@@ -181,7 +161,7 @@ def upload_file():
                     amount=receipt_data.get('Amount', '0.00'),
                     date=receipt_data.get('Date', ''),
                     payment_method=receipt_data.get('Payment_Method', ''),
-                    status='pending'
+                    status='Pending'
                 )
                 db.add(receipt)
                 db.commit()
@@ -258,7 +238,7 @@ def update_receipt_fields(receipt_id):
                 # Only update fields present in the request data
                 if field in data:
                     old_value = getattr(receipt, field)
-                    new_value = data[field].lower() if field == 'status' else data[field]
+                    new_value = data[field]
 
                     if old_value != new_value:
                         # Create change history record
