@@ -23,11 +23,12 @@ export interface Form1099Document extends BaseDocument {
 
 export interface ExpenseDocument extends BaseDocument {
     type: 'Expenses';
+    expenseType: string;
+    payment_method: string;
+    status: DocumentStatus;
     vendor: string;
     amount: number;
     date: string;
-    payment_method: string;
-    category: string;
     originalReceipt?: {
         image_path: string;
         [key: string]: any;

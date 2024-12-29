@@ -30,10 +30,10 @@ class Receipt(Base):
     id = Column(Integer, primary_key=True)
     image_path = Column(String, nullable=False)
     vendor = Column(String)
-    amount = Column(String)  # Back to String to handle 'Missing'
-    date = Column(String)    # Back to String to handle 'Missing'
+    amount = Column(String)
+    date = Column(String)
     payment_method = Column(String)
-    category = Column(String)  # Back to String to handle 'Missing'
+    expenseType = Column(String)  # Changed from category
     content = Column(JSON, nullable=False)
     status = Column(String(20), nullable=False, default='pending')
     # Relationship to change history
@@ -68,9 +68,9 @@ class Receipt(Base):
             self.payment_method = content_lower.get('payment_method') or self.payment_method or 'Missing'
             
             # Handle category
-            if not self.category:
+            if not self.expenseType:
                 from services.categorization_service import CategorizationService
-                self.category = CategorizationService.categorize_receipt(self.content)
+                self.expenseType = CategorizationService.categorize_receipt(self.content)
 
     def to_dict(self):
         """Convert receipt to dictionary"""
@@ -81,7 +81,7 @@ class Receipt(Base):
             'amount': self.amount or 'Missing',
             'date': self.date or 'Missing',
             'payment_method': self.payment_method or 'Missing',
-            'category': self.category or 'Other Expenses',
+            'expenseType': self.expenseType or 'Other Expenses',  # Changed from category
             'content': self.content,
             'status': self.status
         }

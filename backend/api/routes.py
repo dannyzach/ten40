@@ -84,11 +84,11 @@ def validate_field_values(data, receipt_id):
             logger.error(f"Unexpected error validating date: {str(e)}, received value: {data['date']!r}, type: {type(data['date'])}")
             return {'date': "Invalid date format"}
     
-    # Validate category - case insensitive
-    if 'category' in data:
-        category = data['category'].lower()
-        if category not in [cat.lower() for cat in config.expense_categories]:
-            errors['category'] = f"Category must be one of: {', '.join(config.expense_categories)}"
+    # Validate expenseType - case insensitive
+    if 'expenseType' in data:
+        expenseType = data['expenseType'].lower()
+        if expenseType not in [cat.lower() for cat in config.expense_categories]:
+            errors['expenseType'] = f"Expense Type must be one of: {', '.join(config.expense_categories)}"
     
     # Validate payment_method - case insensitive
     if 'payment_method' in data:
@@ -154,6 +154,13 @@ def upload_file():
             # Process with OCR
             ocr_result = OCRService.extract_receipt_data(filepath)
             receipt_data = ocr_result['content']
+            
+            # Add validation for OCR failure
+            if isinstance(receipt_data, str):  # It's an error message
+                raise APIError("OCR processing failed", 
+                              status_code=500, 
+                              details={'error': receipt_data})
+            
             logger.info(f"Receipt data: {receipt_data}")
             
             # Add categorization step
@@ -169,7 +176,7 @@ def upload_file():
                 receipt = Receipt(
                     image_path=saved_filename,
                     content=receipt_data,
-                    category=category,
+                    expenseType=category,
                     vendor=receipt_data.get('Vendor', ''),
                     amount=receipt_data.get('Amount', '0.00'),
                     date=receipt_data.get('Date', ''),
@@ -247,7 +254,7 @@ def update_receipt_fields(receipt_id):
 
             # Track changes and update fields
             updated_fields = {}
-            for field in ['vendor', 'amount', 'date', 'payment_method', 'category', 'status']:
+            for field in ['vendor', 'amount', 'date', 'payment_method', 'expenseType', 'status']:
                 # Only update fields present in the request data
                 if field in data:
                     old_value = getattr(receipt, field)
@@ -279,7 +286,7 @@ def update_receipt_fields(receipt_id):
                 "amount": receipt.amount,
                 "date": receipt.date,
                 "payment_method": receipt.payment_method,
-                "category": receipt.category,
+                "expenseType": receipt.expenseType,
                 "status": receipt.status,
                 "content": receipt.content,
             }

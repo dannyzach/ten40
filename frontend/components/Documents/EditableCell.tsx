@@ -123,18 +123,26 @@ export const EditableCell: React.FC<EditableCellProps> = ({
     
     event.stopPropagation();
     const newValue = event.target.value;
-    setEditValue(newValue);
     
     if (type === 'select') {
+      // First update the display value
+      setEditValue(newValue);
+      
+      // Then try to save
       console.log('EditableCell: Saving select value:', { type, newValue });
-      onSave(newValue).then(() => {
-        console.log('EditableCell: Save successful:', { type, newValue });
-        setError(null);
-        exitEditMode();
-      }).catch((err) => {
-        console.error('EditableCell: Save failed:', { type, newValue, error: err });
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      });
+      onSave(newValue)
+        .then(() => {
+          console.log('EditableCell: Save successful:', { type, newValue });
+          setError(null);
+          exitEditMode(); // Only exit on successful save
+        })
+        .catch((err) => {
+          console.error('EditableCell: Save failed:', { type, newValue, error: err });
+          setError(err instanceof Error ? err.message : 'An error occurred');
+          // Don't exit edit mode on error - let user try again or escape
+        });
+    } else {
+      setEditValue(newValue);
     }
   };
 

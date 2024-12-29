@@ -146,7 +146,7 @@ const COLUMNS: DocumentColumns = {
       minWidth: 150,
       editable: true,
       editType: 'select',
-      options: [] // Will be populated from backend /options endpoint
+      options: []
     },
     { 
       id: 'status' as keyof ExpenseDocument,

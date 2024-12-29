@@ -48,4 +48,12 @@ export interface DonationFilter extends BaseFilter {
   donationType?: string[];
 }
 
-export type DocumentFilter = W2Filter | Form1099Filter | ExpenseFilter | DonationFilter; 
+export type DocumentFilter = W2Filter | Form1099Filter | ExpenseFilter | DonationFilter;
+
+export interface DocumentFilters {
+  vendor?: string;
+  expenseType?: string;
+  payment_method?: string;
+  status?: string;
+  date_range?: DateRange;
+} 

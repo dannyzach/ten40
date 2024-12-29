@@ -2,6 +2,7 @@ import { Document, DocumentType, Receipt } from '@/types';
 import { API_BASE_URL } from '@/config';
 import { format, parse, isValid } from 'date-fns';
 import { enUS } from 'date-fns/locale';
+import { api } from '../../services/api';
 
 // Mock data for testing (excluding Expenses)
 const mockDocuments: Document[] = [
@@ -120,7 +121,7 @@ export const documentsApi = {
                     amount: receipt.amount,
                     date: transformDate(receipt.date),
                     payment_method: receipt.payment_method || 'Unknown',
-                    expenseType: receipt.category || 'Uncategorized',
+                    expenseType: receipt.expenseType || 'Uncategorized',  // Changed from category
                     status: receipt.status || 'pending',
                     uploadDate: transformDate(receipt.date),
                     image_path: receipt.image_path,
