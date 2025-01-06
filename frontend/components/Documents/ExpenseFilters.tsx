@@ -16,6 +16,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CloseIcon from '@mui/icons-material/Close';
+import apiClient from '@/services/apiClient';
 
 export interface ExpenseFilter {
     vendor?: string[];
@@ -64,14 +65,9 @@ export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
     });
 
     useEffect(() => {
-        // Fetch filter options from the backend
         const fetchOptions = async () => {
             try {
-                const response = await fetch('/api/options');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch options');
-                }
-                const data = await response.json();
+                const { data } = await apiClient.get<FilterOptions>('/options');
                 setFilterOptions(data);
             } catch (error) {
                 console.error('Error fetching filter options:', error);

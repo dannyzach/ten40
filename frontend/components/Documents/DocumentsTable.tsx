@@ -41,7 +41,7 @@ import {
     ExpenseDocument,
     DonationDocument
 } from '@/types';
-import { documentsApi } from '@/lib/api/documents';
+import { documentsApi } from '../../lib/api/documents';
 import { useRouter } from 'next/router';
 import { ImageViewer } from '@/components/ImageViewer';
 import { DocumentFilter, 
@@ -669,6 +669,29 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                 value
             });
             throw error;
+        }
+    };
+
+    const handleDelete = async (documentId: string) => {
+        try {
+            setLoading(true);
+            await documentsApi.deleteDocument(documentId);
+            // Refresh the documents list after successful delete
+            await fetchDocuments();
+            setDeleteSnackbar({
+                open: true,
+                message: 'Document deleted successfully'
+            });
+        } catch (error) {
+            console.error('Error deleting document:', error);
+            setDeleteSnackbar({
+                open: true,
+                message: error instanceof ApiError 
+                    ? error.message 
+                    : 'Failed to delete document. Please try again.'
+            });
+        } finally {
+            setLoading(false);
         }
     };
 

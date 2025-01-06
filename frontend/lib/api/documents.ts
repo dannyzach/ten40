@@ -3,6 +3,7 @@ import { API_BASE_URL } from '@/config';
 import { format, parse, isValid } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import { api } from '../../services/api';
+import { apiClient } from '../../services/apiClient';
 
 // Mock data for testing (excluding Expenses)
 const mockDocuments: Document[] = [
@@ -100,60 +101,63 @@ const transformDate = (dateStr: string): string => {
     }
 };
 
+// Add this interface at the top with other types
+interface FilterOptions {
+    categories: string[];
+    payment_methods: string[];
+    statuses: string[];
+    vendors: string[];
+}
+
 export const documentsApi = {
     async getDocuments(type: DocumentType) {
-        // For Expenses, use the existing receipts API
         if (type === 'Expenses') {
-            const response = await fetch('/api/receipts');
-            if (!response.ok) {
-                throw new Error('Failed to fetch expenses');
-            }
-            const receipts = await response.json();
-            console.log('documentsApi.getDocuments: Raw receipts from API:', receipts);
-            
-            // Transform receipt data to match Document interface
-            return receipts.map((receipt: any) => {
-                console.log('documentsApi.getDocuments: Processing receipt:', receipt);
-                const transformed = {
+            try {
+                const { data: receipts } = await apiClient.get<any[]>('/receipts');
+                
+                return receipts.map((receipt: any) => ({
                     id: receipt.id.toString(),
                     type: 'Expenses' as const,
                     vendor: receipt.vendor,
                     amount: receipt.amount,
                     date: transformDate(receipt.date),
                     payment_method: receipt.payment_method || 'Unknown',
-                    expenseType: receipt.expenseType || 'Uncategorized',  // Changed from category
+                    expenseType: receipt.expenseType || 'Uncategorized',
                     status: receipt.status || 'pending',
                     uploadDate: transformDate(receipt.date),
                     image_path: receipt.image_path,
                     content: receipt.content,
                     originalReceipt: receipt
-                };
-                console.log('documentsApi.getDocuments: Transformed receipt:', transformed);
-                return transformed;
-            });
+                }));
+            } catch (error) {
+                console.error('Error fetching expenses:', error);
+                throw error instanceof ApiError 
+                    ? error 
+                    : new ApiError('Failed to fetch expenses', 500);
+            }
         }
-
-        // For other document types, use mock data
-        await new Promise(resolve => setTimeout(resolve, 500));
         return mockDocuments.filter(doc => doc.type === type);
     },
 
     async uploadDocument(file: File, type: DocumentType) {
-        // For Expenses, use the existing upload API
         if (type === 'Expenses') {
-            const formData = new FormData();
-            formData.append('file', file);
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
 
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
+                const { data } = await apiClient.post('/upload', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });
 
-            if (!response.ok) {
-                throw new Error('Failed to upload expense');
+                return data;
+            } catch (error) {
+                console.error('Error uploading document:', error);
+                throw error instanceof ApiError 
+                    ? error 
+                    : new ApiError('Failed to upload expense', 500);
             }
-
-            return await response.json();
         }
 
         // For other document types, use mock upload
@@ -161,31 +165,15 @@ export const documentsApi = {
         return { success: true };
     },
 
-    async approveDocument(id: string, type: DocumentType) {
-        // Mock approval for all document types for now
-        await new Promise(resolve => setTimeout(resolve, 500));
-        console.log(`Mocked approval for ${type} document ${id}`);
-        return { success: true };
-    },
-
     async deleteDocument(id: string) {
         try {
-            // Use the correct API endpoint without the base URL since it's handled by Next.js
-            const response = await fetch(`/api/receipts/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to delete document: ${response.statusText}`);
-            }
-
+            await apiClient.delete(`/receipts/${id}`);
             return;
         } catch (error) {
             console.error('Error deleting document:', error);
-            throw new Error('Failed to delete the selected items. Please try again.');
+            throw error instanceof ApiError 
+                ? error 
+                : new ApiError('Failed to delete document', 500);
         }
     },
 
@@ -196,39 +184,85 @@ export const documentsApi = {
             );
         } catch (error) {
             console.error('Error deleting documents:', error);
-            throw error;
+            throw error instanceof ApiError 
+                ? error 
+                : new ApiError('Failed to delete multiple documents', 500);
         }
-    }
+    },
+
+    // Add new method for fetching filter options
+    async getFilterOptions(): Promise<FilterOptions> {
+        try {
+            const { data } = await apiClient.get<FilterOptions>('/options');
+            return data;
+        } catch (error) {
+            console.error('Error fetching filter options:', error);
+            throw error instanceof ApiError 
+                ? error 
+                : new ApiError('Failed to fetch filter options', 500);
+        }
+    },
+
+    // Move receipt-specific methods into documentsApi object
+    async getReceipts() {
+        try {
+            const { data } = await apiClient.get<any[]>('/receipts');
+            return data;
+        } catch (error) {
+            console.error('Error fetching receipts:', error);
+            throw error instanceof ApiError 
+                ? error 
+                : new ApiError('Failed to fetch receipts', 500);
+        }
+    },
 };
 
 export async function fetchReceipt(id: string): Promise<Receipt> {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/receipts/${id}`);
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch receipt');
-  }
-  
-  return response.json();
-} 
+    try {
+        const { data } = await apiClient.get<Receipt>(`/receipts/${id}`);
+        return data;
+    } catch (error) {
+        console.error('Error fetching receipt:', error);
+        throw error instanceof ApiError 
+            ? error 
+            : new ApiError('Failed to fetch receipt', 500);
+    }
+}
 
 export const updateDocument = async (
-  receiptId: number,
-  updates: Partial<Document>
+    receiptId: number,
+    updates: Partial<Document>
 ): Promise<Document> => {
-  const response = await fetch(`/api/receipts/${receiptId}/update`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(updates),
-  });
+    try {
+        const { data } = await apiClient.patch<{receipt: Document}>(
+            `/receipts/${receiptId}/update`,
+            updates
+        );
+        return data.receipt;
+    } catch (error) {
+        console.error('Update failed:', error);
+        throw error instanceof ApiError 
+            ? error 
+            : new ApiError(
+                'Failed to update document', 
+                500, 
+                { details: error.message }
+            );
+    }
+}; 
 
-  if (!response.ok) {
-    const error = await response.json();
-    console.error("Update failed:", error);
-    throw new Error(error.message || `Failed to update document: ${error.details ? JSON.stringify(error.details) : 'Unknown error'}`);
-  }
+async function testAxiosGetReceipts() {
+    try {
+        const { data } = await apiClient.get<any[]>('/receipts');
+        console.log('Axios test successful - Raw Data:', JSON.stringify(data, null, 2));
+        return data;
+    } catch (error) {
+        console.error('Axios test failed:', error);
+        throw error;
+    }
+}
 
-  const data = await response.json();
-  return data.receipt;
+// Export for testing
+export const __test = {
+    testAxiosGetReceipts
 }; 

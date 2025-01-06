@@ -19,6 +19,7 @@ import TuneIcon from '@mui/icons-material/Tune';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { DocumentType } from '@/types';
 import { DocumentFilter } from '@/types/filters';
+import apiClient from '@/services/apiClient';
 
 interface FilterField {
     type: 'number-range' | 'date-range' | 'multi-select';
@@ -92,11 +93,7 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
         // Fetch filter options from the backend
         const fetchOptions = async () => {
             try {
-                const response = await fetch('/api/options');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch options');
-                }
-                const data = await response.json();
+                const { data } = await apiClient.get<FilterOptions>('/options');
                 setFilterOptions(data);
             } catch (error) {
                 console.error('Error fetching filter options:', error);

@@ -32,6 +32,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { JsonViewer } from '@/components/JsonViewer';
 import { ImageViewer } from '@/components/ImageViewer';
 import { UploadArea } from './UploadArea';
+import apiClient from '@/services/apiClient';
 
 interface Receipt {
     id: number;
@@ -67,9 +68,7 @@ export const ReceiptList = () => {
 
     const fetchReceipts = async () => {
         try {
-            const response = await fetch('/api/receipts');
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
+            const { data } = await apiClient.get<Receipt[]>('/receipts');
             setReceipts(data);
         } catch (error) {
             console.error('Error fetching receipts:', error);
@@ -106,20 +105,16 @@ export const ReceiptList = () => {
         try {
             console.log('Sending request to /api/upload');
             
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
+            const { data } = await apiClient.post('/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            console.log('Upload response status:', response.status);
+            console.log('Upload response status:', data.status);
             
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Upload failed: ${response.statusText}. ${errorText}`);
+            if (!data.ok) {
+                const errorText = await data.text();
+                throw new Error(`Upload failed: ${data.statusText}. ${errorText}`);
             }
-
-            const data = await response.json();
-            console.log('Upload response:', data);
 
             await fetchReceipts();
         } catch (error) {
@@ -136,14 +131,7 @@ export const ReceiptList = () => {
 
         setIsDeleting(true);
         try {
-            const response = await fetch(`/api/receipts/${deleteConfirmOpen}`, {
-                method: 'DELETE'
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to delete receipt: ${response.statusText}`);
-            }
-
+            await apiClient.delete(`/receipts/${deleteConfirmOpen}`);
             await fetchReceipts();
         } catch (error) {
             console.error('Delete error:', error);
@@ -214,7 +202,7 @@ export const ReceiptList = () => {
         try {
             const results = await Promise.all(
                 selectedReceipts.map(id =>
-                    fetch(`/api/receipts/${id}`, { method: 'DELETE' })
+                    apiClient.delete(`/receipts/${id}`)
                     .then(response => ({ id, success: response.ok }))
                 )
             );

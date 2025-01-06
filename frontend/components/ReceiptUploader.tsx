@@ -13,6 +13,7 @@ import { ReceiptTable } from './common';
 import { ImageViewer } from './ImageViewer';
 import { JsonViewer } from './JsonViewer';
 import { Receipt } from '@/types';
+import apiClient from '@/services/apiClient';
 
 const HiddenInput = styled('input')({
     display: 'none'
@@ -36,9 +37,7 @@ export const ReceiptUploader: React.FC = () => {
 
     const fetchReceipts = async () => {
         try {
-            const response = await fetch('/api/receipts');
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
+            const { data } = await apiClient.get<Receipt[]>('/receipts');
             setReceipts(data);
         } catch (error) {
             console.error('Error fetching receipts:', error);
@@ -103,18 +102,13 @@ export const ReceiptUploader: React.FC = () => {
         formData.append('file', file);
 
         try {
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
+            const { data } = await apiClient.post('/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
-
-            if (!response.ok) {
-                throw new Error(`Upload failed: ${response.statusText}`);
-            }
 
             setUploadStatus('success');
             setUploadProgress(100);
-            await fetchReceipts(); // Refresh the list after successful upload
+            await fetchReceipts();
         } catch (error) {
             console.error('Upload error:', error);
             setUploadStatus('error');
