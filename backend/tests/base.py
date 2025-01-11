@@ -4,6 +4,7 @@ import time
 from PIL import Image, ImageDraw
 import io
 import sys
+from utils.http_client import HTTPClient
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -16,6 +17,11 @@ class BaseTest:
     REQUEST_TIMEOUT = 30  # 30 seconds for other requests
 
     @classmethod
+    def setup_class(cls):
+        """Setup test class"""
+        cls.client = HTTPClient(cls.BASE_URL)
+
+    @classmethod
     def wait_for_server(cls, timeout=30, interval=2):
         """Wait for server to become available"""
         logger.info("Checking server availability...")
@@ -23,7 +29,7 @@ class BaseTest:
         
         while time.time() - start_time < timeout:
             try:
-                response = requests.get(f'{cls.BASE_URL}/health')
+                response = cls.client.get('health')
                 if response.status_code == 200:
                     logger.info("Server is available")
                     return True

@@ -276,3 +276,8 @@ describe('documentsApi', () => {
    - Cache responses when appropriate
    - Implement optimistic updates
    - Handle stale data scenarios
+
+## Development Standards
+
+### HTTP Clients
+This project standardizes on the `requests` library for HTTP client operations. All HTTP requests should use this library to maintain consistency across the codebase.
