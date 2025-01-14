@@ -53,7 +53,6 @@ import { DocumentFilter,
 import { DocumentFilters } from './DocumentFilters';
 import { useSearch } from '@/contexts/SearchContext';
 import { EditableCell } from './EditableCell';
-import { updateDocument } from '@/lib/api/documents';
 import { format, parse, isValid } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 
@@ -141,7 +140,7 @@ const COLUMNS: DocumentColumns = {
       options: ['Credit Card', 'Debit Card', 'Cash', 'Check', 'Wire Transfer', 'Other']
     },
     { 
-      id: 'expenseType',
+      id: 'category',
       label: 'Expense Type',
       minWidth: 150,
       editable: true,
@@ -258,6 +257,13 @@ const TableToolbar = ({
     </Box>
 );
 
+interface Document {
+    id: string;
+    type: string;
+    image_path: string;
+    // ... other document properties
+}
+
 export const DocumentsTable: React.FC<DocumentsTableProps> = ({
     type,
     filters,
@@ -291,12 +297,28 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
     }));
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchDocuments();
-    }, [type]);
+    const fetchDocuments = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await documentsApi.getDocuments();
+            if (!response?.data) {
+                throw new Error('No data received from server');
+            }
+            setDocuments(response.data);
+        } catch (error) {
+            console.error('Error fetching documents:', error);
+            setError('Failed to load documents. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        // Set default sorting when type changes
+        // Fetch documents
+        fetchDocuments();
+        
+        // Set default sorting
         if (type === 'Expenses') {
             setOrderBy('date');
             setOrder('desc');
@@ -304,7 +326,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
             setOrderBy('');
             setOrder('asc');
         }
-    }, [type]);
+    }, [type]); // Single effect for type changes
 
     useEffect(() => {
         if (documents.length > 0) {
@@ -323,9 +345,9 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                         options.paymentMethods.add(doc.payment_method);
                     }
                     // Collect categories
-                    if (doc.expenseType) {
+                    if (doc.category) {
                         options.categories = options.categories || new Set();
-                        options.categories.add(doc.expenseType);
+                        options.categories.add(doc.category);
                     }
                 }
                 // Add similar collectors for other document types
@@ -356,7 +378,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                 setColumns(prev => ({
                     ...prev,
                     'Expenses': prev['Expenses'].map(column => {
-                        if (column.id === 'expenseType') {
+                        if (column.id === 'category') {
                             return { ...column, options: data.categories || [] };
                         }
                         if (column.id === 'status') {
@@ -372,21 +394,6 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
 
         fetchOptions();
     }, []);
-
-    const fetchDocuments = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const docs = await documentsApi.getDocuments(type);
-            console.log('DocumentsTable.fetchDocuments: Received documents:', docs);
-            setDocuments(docs);
-        } catch (error) {
-            console.error('Error fetching documents:', error);
-            setError('Failed to load documents. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleApprove = async (documentId: string) => {
         try {
@@ -409,10 +416,10 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         setOrderBy(columnId);
     }, [orderBy, order]);
 
-    const getFilteredDocuments = () => {
-        if (!documents) return [];
-
-        return documents.filter((doc) => {
+    const getFilteredDocuments = useCallback((docs: Document[]) => {
+        if (!Array.isArray(docs)) return [];
+        
+        return docs.filter((doc) => {
             if (doc.type !== type) return false;
 
             // Handle different document types
@@ -434,25 +441,19 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                     if (expenseFilter.amountRange?.min && expenseDoc.amount < expenseFilter.amountRange.min) return false;
                     if (expenseFilter.amountRange?.max && expenseDoc.amount > expenseFilter.amountRange.max) return false;
                     if (expenseFilter.paymentMethod?.length && !expenseFilter.paymentMethod.includes(expenseDoc.payment_method)) return false;
-                    if (expenseFilter.category?.length && !expenseFilter.category.includes(expenseDoc.expenseType)) return false;
+                    if (expenseFilter.category?.length && !expenseFilter.category.includes(expenseDoc.category)) return false;
                     break;
                 }
                 // ... other cases
             }
-
-            // Common filters
-            if (filters.status?.length && !filters.status.includes(doc.status)) return false;
-            if (filters.dateRange?.start && new Date(doc.uploadDate) < new Date(filters.dateRange.start)) return false;
-            if (filters.dateRange?.end && new Date(doc.uploadDate) > new Date(filters.dateRange.end)) return false;
-
             return true;
         });
-    };
+    }, [type, filters]);
 
     // Add sorting logic
     const getSortedDocuments = useCallback(() => {
-        const filtered = getFilteredDocuments();
-        if (!orderBy) return filtered;
+        const filtered = getFilteredDocuments(documents);
+        if (!orderBy || !Array.isArray(filtered)) return filtered;
 
         return [...filtered].sort((a, b) => {
             let aValue = a[orderBy as keyof typeof a];
@@ -508,7 +509,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                 ? aString.localeCompare(bString)
                 : bString.localeCompare(aString);
         });
-    }, [getFilteredDocuments, orderBy, order]);
+    }, [documents, getFilteredDocuments, orderBy, order]);
 
     const renderActions = (document: Document) => (
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
@@ -540,8 +541,8 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
     );
 
     const filteredDocuments = useMemo(() => 
-        getFilteredDocuments(), 
-        [documents, getFilteredDocuments, searchQuery]
+        getFilteredDocuments(documents), 
+        [documents, getFilteredDocuments]
     );
 
     const sortedDocuments = useMemo(() => 
@@ -581,9 +582,11 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
     const handleBulkDelete = async () => {
         if (!selected.length) return;
         
+        console.log(`[DocumentsTable] Starting bulk delete for ${selected.length} documents:`, selected);
         setIsDeleting(true);
         try {
             await documentsApi.deleteDocuments(selected);
+            console.log('[DocumentsTable] Bulk delete API call successful');
             
             // Only clear selection and refresh if delete was successful
             setSelected([]);
@@ -596,7 +599,7 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
             });
             setShowBulkDeleteConfirm(false);
         } catch (error) {
-            console.error('Bulk delete error:', error);
+            console.error('[DocumentsTable] Bulk delete error:', error);
             setBulkActionStatus({
                 show: true,
                 message: error instanceof Error ? error.message : 'Failed to delete selected items',
@@ -634,10 +637,11 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
 
     const handleUpdateField = async (documentId: string, field: string, value: any) => {
         try {
-            console.log('DocumentsTable.handleUpdateField: Updating field:', {
+            console.log('[DocumentsTable] handleUpdateField: Starting update:', {
                 documentId,
                 field,
-                value
+                value,
+                valueType: typeof value
             });
             
             // Format the value based on field type
@@ -646,36 +650,53 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                 formattedValue = typeof value === 'string' 
                     ? parseFloat(value.replace(/[^\d.-]/g, ''))
                     : value;
+                console.log('[DocumentsTable] Formatted amount value:', formattedValue);
             } else if (field === 'status') {
                 // Ensure proper case for status values
                 formattedValue = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+                console.log('[DocumentsTable] Formatted status value:', formattedValue);
             }
             
-            const updates = { [field]: formattedValue };
-            const updatedDoc = await updateDocument(documentId, updates);
+            console.log('[DocumentsTable] Sending update with formatted value:', {
+                field,
+                formattedValue,
+                formattedValueType: typeof formattedValue
+            });
             
+            // Optimistic update
             setDocuments(prevDocs =>
                 prevDocs.map(doc =>
                     doc.id === documentId 
-                        ? { ...doc, ...updatedDoc }
+                        ? { ...doc, [field]: formattedValue }
                         : doc
                 )
             );
+            
+            const updates = { [field]: formattedValue };
+            const updatedDoc = await documentsApi.updateDocument(documentId, updates);
+            
+            console.log('[DocumentsTable] Received updated document:', updatedDoc);
+            
+            // Still fetch to ensure consistency with server
+            await fetchDocuments();
         } catch (error) {
-            console.error('DocumentsTable.handleUpdateField: Update failed:', {
+            console.error('[DocumentsTable] Update failed:', {
                 error,
                 documentId,
                 field,
                 value
             });
+            // Revert optimistic update on error
+            await fetchDocuments();
             throw error;
         }
     };
 
     const handleDelete = async (documentId: string) => {
+        console.log(`[DocumentsTable] Initiating delete for document: ${documentId}`);
         try {
-            setLoading(true);
             await documentsApi.deleteDocument(documentId);
+            console.log(`[DocumentsTable] Delete API call successful for document: ${documentId}`);
             // Refresh the documents list after successful delete
             await fetchDocuments();
             setDeleteSnackbar({
@@ -683,10 +704,10 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
                 message: 'Document deleted successfully'
             });
         } catch (error) {
-            console.error('Error deleting document:', error);
+            console.error('[DocumentsTable] Error in delete handler:', error);
             setDeleteSnackbar({
                 open: true,
-                message: error instanceof ApiError 
+                message: error instanceof Error 
                     ? error.message 
                     : 'Failed to delete document. Please try again.'
             });

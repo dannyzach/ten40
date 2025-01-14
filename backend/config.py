@@ -1,9 +1,11 @@
 import os
+from datetime import timedelta
 
 class Config:
     """Base configuration"""
     def __init__(self):
-        self.db_path = os.path.join('data', 'receipts.db')
+        # Database path relative to this file (config.py)
+        self.db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'receipts.db')
         self.upload_folder = os.path.join('Receipts', 'uploads')
         
         # Single source of truth for expense categories
@@ -48,13 +50,25 @@ class Config:
             "Rejected"
         ]
 
+    # JWT configurations
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=int(os.getenv('TOKEN_EXPIRE_MINUTES', 30)))
+    REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+    @property
+    def jwt_secret_key(self):
+        return os.getenv('AUTH_SECRET_KEY')
+
 class TestConfig(Config):
     """Test configuration"""
     def __init__(self):
-        super().__init__()  # Call parent init to get the categories and other settings
-        self.db_path = ':memory:'  # Use in-memory SQLite for tests
+        super().__init__()
+        self.db_path = ':memory:'
         self.upload_folder = 'test_uploads'
 
 # Use test config if TESTING environment variable is set
 config = TestConfig() if os.getenv('TESTING') else Config()
+
+# OAuth configurations (if needed)
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
   

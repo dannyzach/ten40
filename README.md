@@ -26,8 +26,6 @@ A modern document management system built for handling tax documents, receipts, 
 │   │   ├── categorization_service.py # Service to categorize via OpenAI
 │   │   ├── categorization.py # Legacy document categorization
 │   │   └── ocr_service.py   # Service to call OpenAI for OCR
-│   ├── src/                 # Backend index
-│   │   └── index.ts         # Basic Express server for a health check
 │   ├── tests/              # Test suite
 │   │   ├── __init__.py      # Makes 'tests' a Python package
 │   │   ├── base.py          # Test configuration and helper functions
@@ -99,7 +97,6 @@ A modern document management system built for handling tax documents, receipts, 
 │   │   ├── api/              # Contains the API related code
 │   │   │   ├── client.ts     # Axios API client setup
 │   │   │   └── documents.ts # Document API calls (fetch, upload, etc.)
-│   │   ├── api.ts     # Previous version of api calls using fetch
 │   │   └── createEmotionCache.ts  # Emotion cache configuration
 │   ├── pages/             # Next.js pages (routes)
 │   │   ├── receipt/
@@ -450,4 +447,8 @@ npm test
 # Backend tests
 cd backend
 python -m pytest
-```
+
+## Password Hashing Update (January 2025)
+- Password hashing method updated to use scrypt
+- Existing users may need to reset their passwords
+- Run migration script if upgrading from previous version

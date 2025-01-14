@@ -1,8 +1,9 @@
-from flask import Blueprint, request, jsonify, current_app, send_from_directory
+from flask import Blueprint, request, jsonify, current_app, send_from_directory, g
 from werkzeug.utils import secure_filename
 import os
 import logging
-from models.database import get_db, Receipt, ReceiptChangeHistory
+from database import get_db
+from models.receipt import Receipt, ReceiptChangeHistory
 from services.ocr_service import OCRService
 from services.categorization_service import CategorizationService
 import uuid
@@ -14,6 +15,8 @@ from http import HTTPStatus
 from decimal import Decimal, InvalidOperation
 import time
 from .errors import APIError
+from auth.decorators import require_auth
+import json
 
 # Configure logging
 logger = logging.getLogger('api.routes')
@@ -84,11 +87,11 @@ def validate_field_values(data, receipt_id):
             logger.error(f"Unexpected error validating date: {str(e)}, received value: {data['date']!r}, type: {type(data['date'])}")
             return {'date': "Invalid date format"}
     
-    # Validate expenseType - case insensitive
-    if 'expenseType' in data:
-        expenseType = data['expenseType']
-        if expenseType not in config.expense_categories:
-            errors['expenseType'] = f"Expense Type must be one of: {', '.join(config.expense_categories)}"
+    # Validate category/expense type - case insensitive
+    if 'category' in data:
+        category = data['category']
+        if category not in config.expense_categories:
+            errors['category'] = f"Category must be one of: {', '.join(config.expense_categories)}"
     
     # Validate payment_method - case insensitive
     if 'payment_method' in data:
@@ -105,6 +108,7 @@ def validate_field_values(data, receipt_id):
     return errors
 
 @api_bp.route('/upload', methods=['POST'])
+@require_auth
 def upload_file():
     logger.info("Received upload request")
     try:
@@ -155,8 +159,9 @@ def upload_file():
             with get_db() as db:
                 receipt = Receipt(
                     image_path=saved_filename,
-                    content=receipt_data,
-                    expenseType=category,
+                    content=json.dumps(receipt_data),  # Serialize dict to JSON string
+                    user_id=g.user.id,
+                    category=category,
                     vendor=receipt_data.get('Vendor', ''),
                     amount=receipt_data.get('Amount', '0.00'),
                     date=receipt_data.get('Date', ''),
@@ -184,15 +189,26 @@ def upload_file():
         raise APIError("Failed to upload receipt", status_code=500, details={'error': str(e)})
 
 @api_bp.route('/receipts', methods=['GET'])
+@require_auth
 def get_receipts():
     start_time = time.time()
+    logger.info("API: Received GET /receipts request")
     try:
         with get_db() as db:
-            receipts = db.query(Receipt).all()
-            return jsonify([r.to_dict() for r in receipts])
+            # Log the query we're about to make
+            logger.info(f"Database: Getting receipts for user_id: {g.user.id}")
+            
+            # Get all receipts and log their IDs
+            receipts = db.query(Receipt).filter(Receipt.user_id == g.user.id).all()
+            receipt_ids = [r.id for r in receipts]
+            logger.info(f"Database: Found receipts with IDs: {receipt_ids}")
+            
+            response = [r.to_dict() for r in receipts]
+            logger.info(f"API: Sending response with {len(response)} receipts")
+            return jsonify(response)
     except Exception as e:
         logger.error(f"Failed to get receipts: {str(e)}")
-        raise APIError("Failed to fetch receipts", status_code=500, details={'error': str(e)})
+        raise APIError("Failed to fetch receipts", status_code=500)
     finally:
         execution_time = time.time() - start_time
         logger.info(f"Execution time for get_receipts: {execution_time:.2f} seconds")
@@ -234,7 +250,7 @@ def update_receipt_fields(receipt_id):
 
             # Track changes and update fields
             updated_fields = {}
-            for field in ['vendor', 'amount', 'date', 'payment_method', 'expenseType', 'status']:
+            for field in ['vendor', 'amount', 'date', 'payment_method', 'category', 'status']:
                 # Only update fields present in the request data
                 if field in data:
                     old_value = getattr(receipt, field)
@@ -266,7 +282,7 @@ def update_receipt_fields(receipt_id):
                 "amount": receipt.amount,
                 "date": receipt.date,
                 "payment_method": receipt.payment_method,
-                "expenseType": receipt.expenseType,
+                "category": receipt.category,
                 "status": receipt.status,
                 "content": receipt.content,
             }
@@ -294,30 +310,35 @@ def delete_receipt(receipt_id):
     """Delete a receipt"""
     try:
         with get_db() as db:
+            logger.info(f"Starting delete operation for receipt_id: {receipt_id}")
             receipt = db.query(Receipt).get(receipt_id)
             if not receipt:
+                logger.warning(f"Attempted to delete non-existent receipt: {receipt_id}")
                 raise APIError("Receipt not found", status_code=404)
+
+            logger.info(f"Found receipt to delete: ID={receipt_id}, user_id={receipt.user_id}")
 
             # Delete image file
             try:
                 image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], receipt.image_path)
                 if os.path.exists(image_path):
                     os.remove(image_path)
-                    logger.info(f"Deleted image file: {image_path}")
+                    logger.info(f"Successfully deleted image file: {image_path}")
             except Exception as e:
-                logger.error(f"Failed to delete image: {str(e)}")
+                logger.error(f"Failed to delete image for receipt {receipt_id}: {str(e)}")
                 raise APIError("Failed to delete image file", status_code=500)
 
             # Delete database record
             db.delete(receipt)
-            logger.info(f"Deleted receipt: {receipt_id}")
+            db.commit()
+            logger.info(f"Successfully deleted receipt {receipt_id} from database")
             
             return jsonify({'message': 'Receipt deleted successfully'})
             
     except APIError:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete receipt {receipt_id}: {str(e)}")
+        logger.error(f"Unexpected error deleting receipt {receipt_id}: {str(e)}")
         raise APIError("Failed to delete receipt", status_code=500)
 
 @api_bp.route('/images/<path:filename>')

@@ -39,3 +39,10 @@ pylint==3.0.0
 # structlog==23.1.0
 # python-jose==3.3.0
 # bcrypt==4.0.1 
+
+# Add these to existing requirements
+python-jose[cryptography]>=3.3.0  # For JWT handling
+passlib[bcrypt]>=1.7.4  # For password hashing
+python-multipart>=0.0.5  # For form data processing
+google-auth>=2.22.0  # For Google OAuth
+PyJWT==2.8.0

@@ -1,28 +1,30 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from api.routes import api_bp
-# from backend.api.routes import api_bp # Import the API blueprint
 from config import config
 import logging
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.exceptions import HTTPException
 from api.errors import APIError, handle_api_error, handle_http_error, handle_generic_error
+from api.auth import auth_bp
+from models import User, Receipt
+from database import init_db
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
 app = Flask(__name__)
-app.register_blueprint(api_bp, url_prefix='/api') # Register API blueprint with /api prefix
+init_db()
 
 # Configure CORS with timeout
 CORS(app, resources={
-    r"/api/*": {
+    r"/*": {
         "origins": ["http://localhost:3000"],
-        "methods": ["GET", "POST", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
+        "methods": ["GET", "POST", "DELETE", "PATCH", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
     }
 })
 
@@ -39,8 +41,9 @@ app.register_error_handler(APIError, handle_api_error)
 app.register_error_handler(HTTPException, handle_http_error)
 app.register_error_handler(Exception, handle_generic_error)
 
-# Register blueprints
-# app.register_blueprint(api_bp, url_prefix='/api')
+# Register blueprints - only register each blueprint once
+app.register_blueprint(api_bp, url_prefix='/api')
+app.register_blueprint(auth_bp, url_prefix='/api/auth')  # Add /api prefix
 
 @app.route('/api/health')
 def health_check():
