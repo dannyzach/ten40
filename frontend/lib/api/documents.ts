@@ -9,7 +9,7 @@ export const documentsApi = {
                 return response;
             });
     },
-    uploadDocument: (file: File) => {
+    uploadDocument: (file: File, type: DocumentType) => {
         const formData = new FormData();
         formData.append('file', file);
         const token = localStorage.getItem('auth_token');

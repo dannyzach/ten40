@@ -9,6 +9,7 @@ from api.errors import APIError, handle_api_error, handle_http_error, handle_gen
 from api.auth import auth_bp
 from models import User, Receipt
 from database import init_db
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -18,6 +19,10 @@ logging.basicConfig(
 
 app = Flask(__name__)
 init_db()
+
+# Create upload directory if it doesn't exist
+upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+os.makedirs(upload_dir, exist_ok=True)
 
 # Configure CORS to accept requests from frontend domain
 CORS(app, resources={
@@ -35,7 +40,7 @@ CORS(app, resources={
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Configure upload folder
-app.config['UPLOAD_FOLDER'] = config.upload_folder
+app.config['UPLOAD_FOLDER'] = upload_dir
 app.config['UPLOAD_TIMEOUT'] = 120
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['PROPAGATE_EXCEPTIONS'] = True  # Enable full error reporting
