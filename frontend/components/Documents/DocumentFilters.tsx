@@ -164,7 +164,13 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
     };
 
     const handleResetFilters = () => {
-        onFilterChange({});
+        onFilterChange({
+            startDate: null,
+            endDate: null,
+            category: null,
+            minAmount: null,
+            maxAmount: null
+        });
     };
 
     const renderActiveFilters = () => {

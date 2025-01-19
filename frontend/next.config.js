@@ -16,14 +16,7 @@ const nextConfig = {
             'backend-production-711f.up.railway.app',
             'localhost'
         ],
-    },
-    // These are needed for local development
-    api: {
-        bodyParser: {
-            sizeLimit: '16mb',
-        },
-        responseLimit: '16mb',
-    },
+    }
 };
 
 module.exports = nextConfig;
