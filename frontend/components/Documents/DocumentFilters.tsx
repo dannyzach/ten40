@@ -165,12 +165,20 @@ export const DocumentFilters: React.FC<DocumentFiltersProps> = ({
 
     const handleResetFilters = () => {
         onFilterChange({
-            startDate: null,
-            endDate: null,
-            category: null,
-            minAmount: null,
-            maxAmount: null
-        });
+            type: type,
+            dateRange: undefined,
+            status: undefined,
+            ...(type === 'Expenses' ? {
+                vendor: undefined,
+                category: undefined,
+                amountRange: undefined,
+                paymentMethod: undefined,
+            } : {}),
+            ...(type === 'W-2' ? {
+                employer: undefined,
+                wageRange: undefined,
+            } : {}),
+        } as DocumentFilter);
     };
 
     const renderActiveFilters = () => {
