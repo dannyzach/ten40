@@ -1,5 +1,11 @@
 // Document Types
-export type DocumentType = 'W-2' | '1099' | 'Expenses' | 'Donations';
+export enum DocumentType {
+    EXPENSE = 'Expenses',    // Current primary type for receipts
+    W2 = 'W-2',             // Future types
+    FORM_1099 = '1099',
+    DONATION = 'Donations'
+}
+
 export type DocumentStatus = 'pending' | 'processed' | 'error';
 
 // Receipt Types
@@ -36,20 +42,20 @@ export interface BaseDocument {
 }
 
 export interface W2Document extends BaseDocument {
-    type: 'W-2';
+    type: DocumentType.W2;
     employer: string;
     wages: number;
     fedWithholding: number;
 }
 
 export interface Form1099Document extends BaseDocument {
-    type: '1099';
+    type: DocumentType.FORM_1099;
     employer: string;
     nonEmpCompensation: number;
 }
 
 export interface ExpenseDocument extends BaseDocument {
-    type: 'Expenses';
+    type: DocumentType.EXPENSE;
     vendor: string;
     amount: number;
     date: string;
@@ -58,7 +64,7 @@ export interface ExpenseDocument extends BaseDocument {
 }
 
 export interface DonationDocument extends BaseDocument {
-    type: 'Donations';
+    type: DocumentType.DONATION;
     charityName: string;
     amount: number;
     donationType: string;
