@@ -1,7 +1,13 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm install"
+buildCommand = "npm install && npm run build"
 
 [deploy]
-startCommand = "npm run start"
-restartPolicyType = "on_failure" 
+startCommand = "npm run build && npm start"
+healthcheckPath = "/"
+restartPolicyType = "on_failure"
+PORT = "3000"
+
+[deploy.env]
+NODE_ENV = "production"
+NEXT_PUBLIC_API_URL = "https://backend-production-711f.up.railway.app" 

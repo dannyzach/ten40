@@ -19,11 +19,15 @@ logging.basicConfig(
 app = Flask(__name__)
 init_db()
 
-# Configure CORS with timeout
+# Configure CORS to accept requests from frontend domain
 CORS(app, resources={
-    r"/*": {
-        "origins": ["http://localhost:3000", "https://*.railway.app"],
-        "methods": ["GET", "POST", "DELETE", "PATCH", "OPTIONS"],
+    r"/api/*": {
+        "origins": [
+            "https://frontend-production.up.railway.app",  # Production frontend
+            "http://localhost:3000",                       # Local development
+            "https://*.railway.app"                        # Other Railway apps
+        ],
+        "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
 })
