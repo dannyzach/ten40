@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 # Initialize the OpenAI client with error handling
 try:
-    print(os.getenv('OPENAI_API_KEY'))
     client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
     if not os.getenv('OPENAI_API_KEY'):
         logger.error("OPENAI_API_KEY not found in environment variables")
