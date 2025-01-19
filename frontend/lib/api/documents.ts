@@ -1,4 +1,5 @@
 import apiClient from './client';
+import { DocumentType } from '@/types';
 
 export const documentsApi = {
     getDocuments: () => {
@@ -12,6 +13,7 @@ export const documentsApi = {
     uploadDocument: (file: File, type: DocumentType) => {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('type', type);
         const token = localStorage.getItem('auth_token');
         
         return apiClient.post('/upload', formData, {
