@@ -22,7 +22,7 @@ init_db()
 # Configure CORS with timeout
 CORS(app, resources={
     r"/*": {
-        "origins": ["http://localhost:3000"],
+        "origins": ["http://localhost:3000", "https://*.railway.app"],
         "methods": ["GET", "POST", "DELETE", "PATCH", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }

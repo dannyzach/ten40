@@ -1,0 +1,12 @@
+[build]
+builder = "nixpacks"
+buildCommand = "pip install -r requirements.txt"
+
+[deploy]
+startCommand = "gunicorn --bind 0.0.0.0:$PORT 'app:app'"
+healthcheckPath = "/api/health"
+restartPolicyType = "on_failure"
+
+[deploy.env]
+UPLOAD_FOLDER = "/tmp/uploads"
+FLASK_ENV = "production" 

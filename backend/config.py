@@ -6,7 +6,7 @@ class Config:
     def __init__(self):
         # Database path relative to this file (config.py)
         self.db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'receipts.db')
-        self.upload_folder = os.path.join('Receipts', 'uploads')
+        self.upload_folder = os.getenv('UPLOAD_FOLDER', 'uploads')
         
         # Single source of truth for expense categories
         self.expense_categories = [

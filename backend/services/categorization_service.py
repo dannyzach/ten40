@@ -3,6 +3,7 @@ from openai import OpenAI
 from typing import Dict, Optional
 from config import config
 
+print(os.getenv('OPENAI_API_KEY'))
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 class CategorizationService:
