@@ -53,7 +53,10 @@ export type DocumentFilter = W2Filter | Form1099Filter | ExpenseFilter | Donatio
 export interface DocumentFilters {
   vendor?: string;
   expenseType?: string;
-  payment_method?: string;
+  paymentMethod?: string;
   status?: string;
-  date_range?: DateRange;
+  dateRange?: {
+    start: string;
+    end: string;
+  };
 } 

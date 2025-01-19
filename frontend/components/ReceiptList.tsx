@@ -105,17 +105,9 @@ export const ReceiptList = () => {
         try {
             console.log('Sending request to /api/upload');
             
-            const { data } = await apiClient.post('/upload', formData, {
+            await apiClient.post('/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-
-            console.log('Upload response status:', data.status);
-            
-            if (!data.ok) {
-                const errorText = await data.text();
-                throw new Error(`Upload failed: ${data.statusText}. ${errorText}`);
-            }
-
             await fetchReceipts();
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Upload failed';
@@ -201,10 +193,14 @@ export const ReceiptList = () => {
         setIsDeleting(true);
         try {
             const results = await Promise.all(
-                selectedReceipts.map(id =>
-                    apiClient.delete(`/receipts/${id}`)
-                    .then(response => ({ id, success: response.ok }))
-                )
+                selectedReceipts.map(async (id) => {
+                    try {
+                        await apiClient.delete(`/receipts/${id}`);
+                        return { id, success: true };
+                    } catch (error) {
+                        return { id, success: false };
+                    }
+                })
             );
 
             const failedDeletes = results.filter(r => !r.success).length;

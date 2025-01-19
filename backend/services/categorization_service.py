@@ -3,6 +3,10 @@ from openai import OpenAI
 from typing import Dict, Optional
 from config import config
 
+class CategorizationError(Exception):
+    """Custom exception for categorization service errors"""
+    pass
+
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 class CategorizationService:

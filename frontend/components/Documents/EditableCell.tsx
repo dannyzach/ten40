@@ -110,40 +110,29 @@ export const EditableCell: React.FC<EditableCellProps> = ({
     }
   };
 
-  const handleChange = (
-    event: SelectChangeEvent<string> | React.ChangeEvent<HTMLInputElement>
+  const handleTextChange = (
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    console.log('EditableCell: handleChange called:', {
-      type,
-      oldValue: editValue,
-      newValue: event.target.value,
-      isEditing,
-      timestamp: new Date().getTime()
-    });
-    
+    event.stopPropagation();
+    setEditValue(event.target.value);
+  };
+
+  const handleSelectChange = (
+    event: SelectChangeEvent<string>
+  ) => {
     event.stopPropagation();
     const newValue = event.target.value;
+    setEditValue(newValue);
     
-    if (type === 'select') {
-      // First update the display value
-      setEditValue(newValue);
-      
-      // Then try to save
-      console.log('EditableCell: Saving select value:', { type, newValue });
-      onSave(newValue)
+    // Select-specific handling
+    onSave(newValue)
         .then(() => {
-          console.log('EditableCell: Save successful:', { type, newValue });
-          setError(null);
-          exitEditMode(); // Only exit on successful save
+            setError(null);
+            exitEditMode();
         })
         .catch((err) => {
-          console.error('EditableCell: Save failed:', { type, newValue, error: err });
-          setError(err instanceof Error ? err.message : 'An error occurred');
-          // Don't exit edit mode on error - let user try again or escape
+            setError(err instanceof Error ? err.message : 'An error occurred');
         });
-    } else {
-      setEditValue(newValue);
-    }
   };
 
   if (!isEditing) {
@@ -181,7 +170,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({
         {type === 'select' ? (
           <Select
             value={editValue}
-            onChange={handleChange}
+            onChange={handleSelectChange}
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 e.preventDefault();
@@ -215,7 +204,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({
         ) : (
           <TextField
             value={editValue}
-            onChange={handleChange}
+            onChange={handleTextChange}
             error={!!error}
             helperText={error}
             size="small"

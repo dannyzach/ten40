@@ -4,7 +4,11 @@ import base64
 import logging
 from openai import OpenAI
 from dotenv import load_dotenv
- 
+
+class OCRServiceError(Exception):
+    """Custom exception for OCR service errors"""
+    pass
+
 # Load environment variables
 load_dotenv()
 

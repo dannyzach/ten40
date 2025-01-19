@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../lib/api/auth';
 import Link from 'next/link';
+import { AxiosError } from 'axios';
 
 export default function Login() {
     const router = useRouter();
@@ -26,11 +27,15 @@ export default function Login() {
             router.push('/documents');
         } catch (err) {
             console.error('Login error:', err);
-            setError(
-                err.response?.data?.detail || 
-                err.response?.data?.message || 
-                'Invalid email or password'
-            );
+            if (err instanceof AxiosError) {
+                setError(
+                    err.response?.data?.detail ||
+                    err.response?.data?.message ||
+                    'Invalid email or password'
+                );
+            } else {
+                setError('An unexpected error occurred');
+            }
         }
     };
 

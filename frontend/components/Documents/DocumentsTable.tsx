@@ -39,7 +39,8 @@ import {
     W2Document,
     Form1099Document,
     ExpenseDocument,
-    DonationDocument
+    DonationDocument,
+    BaseDocument
 } from '@/types';
 import { documentsApi } from '../../lib/api/documents';
 import { useRouter } from 'next/router';
@@ -58,7 +59,7 @@ import { enUS } from 'date-fns/locale';
 
 type ColumnId<T> = keyof T;
 
-interface Column<T extends Document = Document> {
+interface Column<T extends BaseDocument> {
   id: keyof T | 'actions';
   label: string;
   minWidth?: number;
@@ -611,28 +612,16 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
     };
 
     const renderCell = (document: Document, column: Column<typeof document>) => {
-        if (column.id === 'actions') {
-            return renderActions(document);
+        switch(document.type) {
+            case 'W-2':
+                return renderW2Cell(document as W2Document, column as Column<W2Document>);
+            case 'Expenses':
+                return renderExpenseCell(document as ExpenseDocument, column as Column<ExpenseDocument>);
+            case '1099':
+                return render1099Cell(document as Form1099Document, column as Column<Form1099Document>);
+            case 'Donations':
+                return renderDonationCell(document as DonationDocument, column as Column<DonationDocument>);
         }
-
-        const value = document[column.id as keyof typeof document];
-        
-        if (column.editable) {
-            return (
-                <EditableCell
-                    value={value}
-                    type={column.editType || 'text'}
-                    options={column.options}
-                    onSave={async (newValue) => {
-                        await handleUpdateField(document.id, column.id as string, newValue);
-                    }}
-                    format={column.format}
-                    align={column.align}
-                />
-            );
-        }
-
-        return column.format ? column.format(value) : value;
     };
 
     const handleUpdateField = async (documentId: string, field: string, value: any) => {
@@ -714,6 +703,44 @@ export const DocumentsTable: React.FC<DocumentsTableProps> = ({
         } finally {
             setLoading(false);
         }
+    };
+
+    // Add these render functions
+    const renderExpenseCell = (doc: ExpenseDocument, column: Column<ExpenseDocument>) => {
+        if (column.id === 'actions') {
+            return renderActions(doc);
+        }
+        
+        const value = doc[column.id];
+        if (column.editable) {
+            return (
+                <EditableCell
+                    value={value}
+                    type={column.editType || 'text'}
+                    options={column.options}
+                    onSave={async (newValue) => {
+                        await handleUpdateField(doc.id, column.id as string, newValue);
+                    }}
+                    format={column.format}
+                    align={column.align}
+                />
+            );
+        }
+        
+        return column.format ? column.format(value) : value;
+    };
+
+    // Similar functions for other document types
+    const renderW2Cell = (doc: W2Document, column: Column<W2Document>) => {
+        // Similar implementation
+    };
+
+    const render1099Cell = (doc: Form1099Document, column: Column<Form1099Document>) => {
+        // Similar implementation
+    };
+
+    const renderDonationCell = (doc: DonationDocument, column: Column<DonationDocument>) => {
+        // Similar implementation
     };
 
     if (loading) {

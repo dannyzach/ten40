@@ -4,8 +4,8 @@ import os
 import logging
 from database import get_db
 from models.receipt import Receipt, ReceiptChangeHistory
-from services.ocr_service import OCRService
-from services.categorization_service import CategorizationService
+from services.ocr_service import OCRService, OCRServiceError
+from services.categorization_service import CategorizationService, CategorizationError
 import uuid
 from PIL import Image
 from datetime import datetime
@@ -20,6 +20,17 @@ import json
 
 # Configure logging
 logger = logging.getLogger('api.routes')
+
+# Initialize services
+ocr_service = OCRService()
+categorization_service = CategorizationService()
+
+# Configure allowed file extensions
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 api_bp = Blueprint('api', __name__)
 

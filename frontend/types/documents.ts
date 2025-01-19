@@ -1,11 +1,12 @@
 export type DocumentType = 'W-2' | '1099' | 'Expenses' | 'Donations';
-export type DocumentStatus = 'Pending' | 'Approved' | 'Rejected' | 'all';
+export type DocumentStatus = 'Pending' | 'Approved' | 'Rejected';
 
 interface BaseDocument {
     id: string;
     type: DocumentType;
-    status: Exclude<DocumentStatus, 'all'>;
+    status: DocumentStatus;
     uploadDate: string;
+    image_path: string;
 }
 
 export interface W2Document extends BaseDocument {
@@ -17,30 +18,24 @@ export interface W2Document extends BaseDocument {
 
 export interface Form1099Document extends BaseDocument {
     type: '1099';
-    employer: string;
-    nonEmpCompensation: number;
+    payer: string;
+    amount: number;
 }
 
 export interface ExpenseDocument extends BaseDocument {
     type: 'Expenses';
-    category: string;
-    payment_method: string;
-    status: DocumentStatus;
     vendor: string;
     amount: number;
     date: string;
-    originalReceipt?: {
-        image_path: string;
-        [key: string]: any;
-    };
+    payment_method: string;
+    category: string;
 }
 
 export interface DonationDocument extends BaseDocument {
     type: 'Donations';
-    date: string;
     charityName: string;
-    donationType: string;
     amount: number;
+    donationType: string;
 }
 
 export type Document = W2Document | Form1099Document | ExpenseDocument | DonationDocument; 
