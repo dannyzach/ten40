@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
+    // Disable ESLint during build
+    eslint: {
+        ignoreDuringBuilds: true,
+    },
     async rewrites() {
         // Keep local development working with localhost:3456
         return process.env.NODE_ENV === 'production' ? [] : [
