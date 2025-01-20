@@ -23,44 +23,13 @@ export const documentsApi = {
             }
         });
     },
-    deleteDocument: async (id: string): Promise<void> => {
-        console.log(`[Documents API] Attempting to delete document with ID: ${id}`);
-        try {
-            const response = await apiClient.delete(`/receipts/${id}`);
-            console.log(`[Documents API] Delete response status: ${response.status}`);
-            if (response.status !== 200) {
-                console.error('[Documents API] Failed to delete document:', response.data);
-                throw new Error('Failed to delete document');
-            }
-            console.log(`[Documents API] Successfully deleted document ${id}`);
-        } catch (error) {
-            console.error('[Documents API] Error deleting document:', error);
-            throw error;
-        }
+    deleteDocument: (id: number): Promise<void> => {
+        return apiClient.delete(`/receipts/${id}`);
     },
-    deleteDocuments: async (ids: string[]): Promise<void> => {
-        console.log(`[Documents API] Starting bulk delete operation for ${ids.length} documents:`, ids);
-        try {
-            await Promise.all(ids.map(id => documentsApi.deleteDocument(id)));
-            console.log(`[Documents API] Successfully completed bulk delete of ${ids.length} documents`);
-        } catch (error) {
-            console.error('[Documents API] Bulk delete operation failed:', error);
-            throw new Error('Failed to delete one or more documents');
-        }
+    deleteDocuments: (ids: number[]): Promise<void> => {
+        return apiClient.post('/receipts/bulk-delete', { ids });
     },
-    updateDocument: async (id: string, updates: Record<string, any>): Promise<void> => {
-        console.log(`[Documents API] Attempting to update document ${id}:`, updates);
-        try {
-            const response = await apiClient.patch(`/receipts/${id}/update`, updates);
-            console.log(`[Documents API] Update response:`, response);
-            if (response.status !== 200) {
-                console.error('[Documents API] Update failed:', response.data);
-                throw new Error('Failed to update document');
-            }
-            return response.data;
-        } catch (error) {
-            console.error('[Documents API] Error updating document:', error);
-            throw error;
-        }
+    updateDocument: (id: number, updates: Record<string, any>): Promise<void> => {
+        return apiClient.patch(`/receipts/${id}/update`, updates);
     },
 }; 

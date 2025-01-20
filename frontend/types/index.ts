@@ -60,6 +60,7 @@ export interface ExpenseDocument extends BaseDocument {
     amount: number;
     date: string;
     payment_method: string;
+    category: string;
     expenseType: string;
 }
 
