@@ -18,6 +18,15 @@ const EXPENSE_CATEGORIES = [
     'Other'
 ];
 
+const PAYMENT_METHODS = [
+    'Credit Card',
+    'Debit Card',
+    'Cash',
+    'Check',
+    'Wire Transfer',
+    'Other'
+] as string[];
+
 const COLUMNS: Column<ExpenseDocument>[] = [
     { 
         id: 'vendor',
@@ -32,23 +41,14 @@ const COLUMNS: Column<ExpenseDocument>[] = [
         minWidth: 100,
         align: 'left',
         editable: true,
-        editType: 'amount',
-        format: (value: string | number | null) => {
-            if (value == null) return '';
-            const numValue = typeof value === 'string' ? parseFloat(value) : value;
-            return numValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-        }
+        editType: 'amount'
     },
     { 
         id: 'date',
         label: 'Date',
         minWidth: 100,
         editable: true,
-        editType: 'date',
-        format: (value: string | number | null) => {
-            if (value == null) return '';
-            return new Date(String(value)).toLocaleDateString();
-        }
+        editType: 'date'
     },
     { 
         id: 'payment_method' as keyof ExpenseDocument,
@@ -56,7 +56,7 @@ const COLUMNS: Column<ExpenseDocument>[] = [
         minWidth: 130,
         editable: true,
         editType: 'select',
-        options: ['Credit Card', 'Debit Card', 'Cash', 'Check', 'Wire Transfer', 'Other']
+        options: PAYMENT_METHODS
     },
     { 
         id: 'category',

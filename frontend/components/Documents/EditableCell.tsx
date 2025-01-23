@@ -35,9 +35,17 @@ export const EditableCell: React.FC<EditableCellProps> = ({
   autoFocus
 }) => {
   const [editValue, setEditValue] = useState(value);
+  const [isEditing, setIsEditing] = useState(false);
   
   const handleSave = async () => {
     try {
+      // Only save if we have a complete, valid date
+      if (type === 'date') {
+        if (!editValue || !isValidDate(String(editValue))) {
+          console.log('Skipping save - incomplete or invalid date');
+          return;
+        }
+      }
       await onSave(String(editValue));
     } finally {
       onBlur?.();
@@ -52,45 +60,47 @@ export const EditableCell: React.FC<EditableCellProps> = ({
     }
   };
 
-  const handleBlur = () => {
-    handleSave();
+  const isValidDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date instanceof Date && !isNaN(date.getTime());
   };
 
   if (type === 'date') {
     return (
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <DatePicker
-          value={editValue ? new Date(editValue) : null}
+          value={value === 'Missing' ? null : value ? new Date(value) : null}
           onChange={(newValue) => {
             if (newValue) {
               try {
-                // Ensure date is valid
                 const date = new Date(newValue);
                 if (isNaN(date.getTime())) {
-                  console.error('Invalid date');
                   return;
                 }
                 
-                // Format as YYYY-MM-DD for API
+                // Just update the local state, don't save yet
                 const year = date.getFullYear();
                 const month = String(date.getMonth() + 1).padStart(2, '0');
                 const day = String(date.getDate()).padStart(2, '0');
                 const formatted = `${year}-${month}-${day}`;
-                
                 setEditValue(formatted);
-                onSave(formatted);
               } catch (error) {
                 console.error('Date parsing error:', error);
               }
             }
           }}
-          format="MM/dd/yyyy"  // US format for display
+          format="MM/dd/yyyy"
           slotProps={{
             textField: {
               variant: "standard",
               size: "small",
               fullWidth: true,
-              onBlur: handleBlur
+              onFocus: () => setIsEditing(true),
+              onBlur: () => {
+                setIsEditing(false);
+                handleSave();  // Only save on blur
+              },
+              onKeyDown: handleKeyDown  // Allow Enter to save
             }
           }}
         />
@@ -104,7 +114,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({
         value={editValue}
         onChange={(e) => setEditValue(e.target.value)}
         onKeyDown={handleKeyDown}
-        onBlur={handleBlur}
+        onBlur={handleSave}
         autoFocus={autoFocus}
         variant="standard"
         size="small"
@@ -124,7 +134,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({
       value={editValue}
       onChange={(e) => setEditValue(e.target.value)}
       onKeyDown={handleKeyDown}
-      onBlur={handleBlur}
+      onBlur={handleSave}
       autoFocus={autoFocus}
       variant="standard"
       size="small"

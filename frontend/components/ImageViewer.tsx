@@ -11,6 +11,11 @@ interface ImageViewerProps {
 export const ImageViewer: React.FC<ImageViewerProps> = ({ open, imageUrl, onClose }) => {
     if (!open) return null;
 
+    // Construct the full API URL for the image
+    const fullImageUrl = imageUrl.startsWith('http') 
+        ? imageUrl 
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/images/${imageUrl}`;
+
     return (
         <Dialog 
             open={open} 
@@ -43,12 +48,16 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ open, imageUrl, onClos
                     overflow: 'auto'
                 }}>
                     <img 
-                        src={imageUrl}
+                        src={fullImageUrl}
                         alt="Receipt"
                         style={{
                             maxWidth: '100%',
                             height: 'auto',
                             objectFit: 'contain'
+                        }}
+                        onError={(e) => {
+                            console.error('Image failed to load:', fullImageUrl);
+                            e.currentTarget.src = '/placeholder-receipt.png'; // Add a placeholder image
                         }}
                     />
                 </Box>

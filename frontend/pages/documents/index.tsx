@@ -5,18 +5,18 @@ import { DocumentsView } from '@/components/Documents/DocumentsView';
 import { DocumentUploadArea } from '@/components/Documents/DocumentUploadArea';
 import { DocumentUploadFab } from '@/components/Documents/DocumentUploadFab';
 import { DocumentType } from '@/types';
-import { DocumentFilter } from '@/types/filters';
+import { DocumentFilter, W2Filter, Form1099Filter, ExpenseFilter, DonationFilter } from '@/types/filters';
 
 const DocumentsPage: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<DocumentType>('W-2');
+    const [activeTab, setActiveTab] = useState<DocumentType>('W-2' as DocumentType);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     
     // Persistent filters for each document type
     const [filters, setFilters] = useState<Record<DocumentType, DocumentFilter>>({
-        'W-2': {},
-        '1099': {},
-        'Expenses': {},
-        'Donations': {}
+        'W-2': {} as W2Filter,
+        '1099': {} as Form1099Filter,
+        'Expenses': {} as ExpenseFilter,
+        'Donations': {} as DonationFilter
     });
 
     const handleTabChange = (tab: DocumentType) => {

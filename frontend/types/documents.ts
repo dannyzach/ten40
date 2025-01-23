@@ -2,11 +2,11 @@ export type DocumentType = 'W-2' | '1099' | 'Expenses' | 'Donations';
 export type DocumentStatus = 'Pending' | 'Approved' | 'Rejected';
 
 interface BaseDocument {
-    id: string;
+    id: number;
     type: DocumentType;
     status: DocumentStatus;
     uploadDate: string;
-    image_path: string;
+    image_path?: string;
 }
 
 export interface W2Document extends BaseDocument {

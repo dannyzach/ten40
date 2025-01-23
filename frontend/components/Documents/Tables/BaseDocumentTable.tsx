@@ -30,12 +30,13 @@ import { documentsApi } from '@/lib/api/documents';
 import { EditableCell } from '../EditableCell';
 import { ImageViewer } from '@/components/ImageViewer';
 import { DocumentFilters } from '../DocumentFilters';
+import axios from 'axios';
 
 // Define allowed value types for document fields
 type DocumentValue = string | number | null;
 
 export interface Column<T> {
-    id: keyof T | 'actions' | 'category';
+    id: keyof T | 'actions';
     label: string;
     minWidth?: number;
     align?: 'left' | 'right' | 'center';
@@ -51,6 +52,15 @@ interface BaseDocumentTableProps<T extends Document> {
     filters: any;
     onFilterChange: (filters: any) => void;
 }
+
+// Add a type guard for documents with image paths
+interface WithImagePath {
+    image_path: string;
+}
+
+const hasImagePath = (doc: any): doc is WithImagePath => {
+    return 'image_path' in doc && typeof doc.image_path === 'string';
+};
 
 const TableToolbar = ({ 
     type,
@@ -107,6 +117,68 @@ const TableToolbar = ({
     </Box>
 );
 
+// Add this utility function at the top of the file
+const formatDate = (value: DocumentValue): string => {
+    if (!value || value === 'Missing') return 'Missing';
+    
+    try {
+        const date = new Date(String(value));
+        if (isNaN(date.getTime())) return 'Invalid Date';
+
+        // Use a single consistent format for all dates
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    } catch {
+        return 'Invalid Date';
+    }
+};
+
+const normalizePaymentMethod = (value: string): string => {
+    // Normalize to uppercase for case-insensitive comparison
+    const upperValue = value.toUpperCase();
+    
+    // Map legacy and variant values to standardized options
+    const mapping: Record<string, string> = {
+        'CARD': 'Credit Card',
+        'US DEBIT': 'Debit Card',
+        'DEBIT': 'Debit Card',
+        'CREDIT': 'Credit Card',
+        'CC': 'Credit Card',
+        'DC': 'Debit Card',
+        'WIRE': 'Wire Transfer',
+        'TRANSFER': 'Wire Transfer',
+        'CHK': 'Check',
+        'CHEQUE': 'Check',
+        'CASH': 'Cash'
+    };
+
+    return mapping[upperValue] || value;
+};
+
+const formatAmount = (value: DocumentValue): string => {
+    if (!value) return '';
+    
+    try {
+        // Remove any currency symbols and convert to number
+        const numValue = typeof value === 'string' 
+            ? parseFloat(value.replace(/[^0-9.-]+/g, ''))
+            : Number(value);
+
+        if (isNaN(numValue)) return 'Invalid Amount';
+
+        // Format with 2 decimal places, no currency symbol
+        return numValue.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    } catch {
+        return 'Invalid Amount';
+    }
+};
+
 export function BaseDocumentTable<T extends Document>({ 
     type,
     columns,
@@ -121,15 +193,28 @@ export function BaseDocumentTable<T extends Document>({
     const [availableOptions, setAvailableOptions] = useState<Record<string, string[]>>({});
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [snackbar, setSnackbar] = useState({
+    const [snackbar, setSnackbar] = useState<{
+        open: boolean;
+        message: string;
+        severity: 'success' | 'error';
+    }>({
         open: false,
         message: '',
-        severity: 'success' as const
+        severity: 'success'
     });
     const [editingCell, setEditingCell] = useState<{
         id: number;
         field: keyof T;
     } | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteSnackbar, setDeleteSnackbar] = useState({
+        open: false,
+        message: ''
+    });
+
+    // Move the type guard inside the component
+    const isStringKey = (key: keyof T): key is keyof T & string => 
+        typeof key === 'string';
 
     // Fetch documents
     useEffect(() => {
@@ -171,22 +256,73 @@ export function BaseDocumentTable<T extends Document>({
     };
 
     // Delete handlers
-    const handleDelete = async (ids: number[]) => {
+    const handleSingleDelete = async (documentId: number) => {
         try {
-            await documentsApi.deleteDocuments(ids);
+            await documentsApi.deleteDocument(documentId);
+            await fetchDocuments();
+            setDeleteSnackbar({
+                open: true,
+                message: 'Document deleted successfully'
+            });
+        } catch (error) {
+            console.error('[BaseDocumentTable] Delete error:', error);
+            setDeleteSnackbar({
+                open: true,
+                message: error instanceof Error 
+                    ? error.message 
+                    : 'Failed to delete document. Please try again.'
+            });
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (!selected.length) return;
+        
+        setIsDeleting(true);
+        try {
+            await documentsApi.deleteDocuments(selected);
             await fetchDocuments();
             setSelected([]);
-            showSuccess('Documents deleted successfully');
+            setDeleteSnackbar({
+                open: true,
+                message: 'Successfully deleted selected items'
+            });
+            setDeleteDialogOpen(false);
         } catch (error) {
-            showError('Failed to delete documents');
+            console.error('[BaseDocumentTable] Bulk delete error:', error);
+            setDeleteSnackbar({
+                open: true,
+                message: error instanceof Error 
+                    ? error.message 
+                    : 'Failed to delete selected items'
+            });
+        } finally {
+            setIsDeleting(false);
         }
-        setDeleteDialogOpen(false);
     };
 
     // Update handler
     const handleUpdateField = async (documentId: number, field: keyof T, value: string): Promise<void> => {
         try {
             console.log('[BaseDocumentTable] Starting update:', { documentId, field, value });
+            
+            // Skip update if value is "Missing" or empty
+            if (value === 'Missing' || !value.trim()) {
+                console.log('[BaseDocumentTable] Skipping update for empty/missing value');
+                return;
+            }
+
+            // Special handling for date fields
+            if (field === 'date') {
+                const dateValue = new Date(value);
+                if (isNaN(dateValue.getTime())) {
+                    console.error('[BaseDocumentTable] Invalid date value:', value);
+                    showError('Invalid date format');
+                    return;
+                }
+                // Format date as YYYY-MM-DD
+                value = dateValue.toISOString().split('T')[0];
+            }
             
             // Create update object with proper typing
             const updates = { [field]: value } as Partial<T>;
@@ -196,7 +332,11 @@ export function BaseDocumentTable<T extends Document>({
             showSuccess('Document updated successfully');
         } catch (error) {
             console.error('[BaseDocumentTable] Update failed:', error);
-            showError('Failed to update document');
+            if (axios.isAxiosError(error) && error.response?.status === 400) {
+                showError('Invalid input. Please check the format and try again.');
+            } else {
+                showError('Failed to update document');
+            }
             throw error;
         }
     };
@@ -221,33 +361,20 @@ export function BaseDocumentTable<T extends Document>({
         setEditingCell(null);
     };
 
+    // Then update the formatCellValue function
     const formatCellValue = (value: DocumentValue, column: Column<T>) => {
         if (value == null) return '';
         
-        // Handle date formatting
         if (column.editType === 'date') {
-            try {
-                const date = new Date(value);
-                if (isNaN(date.getTime())) return String(value); // Return original if invalid date
-                return date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                });
-            } catch {
-                return String(value);
-            }
+            return formatDate(value);
         }
 
-        // Handle amount formatting
         if (column.editType === 'amount') {
-            const num = Number(value);
-            if (!isNaN(num)) {
-                return num.toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                });
-            }
+            return formatAmount(value);
+        }
+        
+        if (column.id === 'payment_method') {
+            return normalizePaymentMethod(String(value));
         }
         
         return String(value);
@@ -288,7 +415,7 @@ export function BaseDocumentTable<T extends Document>({
         });
     }, [documents, orderBy, order]);
 
-    const handleSort = (columnId: keyof T) => {
+    const handleSort = (columnId: keyof T & string) => {
         const isAsc = orderBy === columnId && order === 'asc';
         setOrder(isAsc ? 'desc' : 'asc');
         setOrderBy(columnId);
@@ -297,7 +424,7 @@ export function BaseDocumentTable<T extends Document>({
     // Render functions
     const renderActions = (document: T) => (
         <Box sx={{ display: 'flex', gap: 1 }}>
-            {document.image_path && (
+            {hasImagePath(document) && (
                 <Tooltip title="View Image">
                     <IconButton
                         size="small"
@@ -310,10 +437,7 @@ export function BaseDocumentTable<T extends Document>({
             <Tooltip title="Delete">
                 <IconButton
                     size="small"
-                    onClick={() => {
-                        setSelected([document.id]);
-                        setDeleteDialogOpen(true);
-                    }}
+                    onClick={() => handleSingleDelete(document.id)}
                 >
                     <DeleteIcon fontSize="small" />
                 </IconButton>
@@ -322,8 +446,15 @@ export function BaseDocumentTable<T extends Document>({
     );
 
     const renderCell = (document: T, column: Column<T>) => {
-        const value = document[column.id];
-        const isEditing = editingCell?.id === document.id && editingCell?.field === column.id;
+        if (column.id === 'actions') {
+            return renderActions(document);
+        }
+
+        const key = column.id;
+        if (!isStringKey(key)) return null;
+
+        const value = document[key];
+        const isEditing = editingCell?.id === document.id && editingCell?.field === key;
 
         if (column.editable && isEditing) {
             return (
@@ -332,7 +463,9 @@ export function BaseDocumentTable<T extends Document>({
                     type={column.editType || 'text'}
                     options={column.options}
                     onSave={async (newValue) => {
-                        await handleUpdateField(document.id, column.id, newValue);
+                        if (isStringKey(key)) {
+                            await handleUpdateField(document.id, key, newValue);
+                        }
                         setEditingCell(null);
                     }}
                     onBlur={() => setEditingCell(null)}
@@ -341,14 +474,21 @@ export function BaseDocumentTable<T extends Document>({
             );
         }
 
+        // Add explicit type casting for Box children
+        const displayValue = formatCellValue(value as DocumentValue, column);
+        
         return (
             <Box
-                onClick={() => column.editable && setEditingCell({ id: document.id, field: column.id })}
+                onClick={() => {
+                    if (column.editable && isStringKey(key)) {
+                        handleCellClick(document.id, key);
+                    }
+                }}
                 sx={{ 
                     cursor: column.editable ? 'pointer' : 'default'
                 }}
             >
-                {formatCellValue(value as DocumentValue, column)}
+                {displayValue}
             </Box>
         );
     };
@@ -392,7 +532,11 @@ export function BaseDocumentTable<T extends Document>({
                                     <TableSortLabel
                                         active={orderBy === column.id}
                                         direction={orderBy === column.id ? order : 'asc'}
-                                        onClick={() => column.id !== 'actions' && handleSort(column.id as keyof T)}
+                                        onClick={() => {
+                                            if (column.id !== 'actions' && isStringKey(column.id)) {
+                                                handleSort(column.id);
+                                            }
+                                        }}
                                         sx={{
                                             '& .MuiTableSortLabel-icon': {
                                                 opacity: orderBy === column.id ? 1 : 0.5
@@ -446,8 +590,12 @@ export function BaseDocumentTable<T extends Document>({
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={() => handleDelete(selected)} color="error">
-                        Delete
+                    <Button 
+                        onClick={handleBulkDelete} 
+                        color="error"
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? 'Deleting...' : 'Delete'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -461,6 +609,13 @@ export function BaseDocumentTable<T extends Document>({
                     {snackbar.message}
                 </Alert>
             </Snackbar>
+
+            <Snackbar
+                open={deleteSnackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setDeleteSnackbar({ ...deleteSnackbar, open: false })}
+                message={deleteSnackbar.message}
+            />
         </>
     );
 } 

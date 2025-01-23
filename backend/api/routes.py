@@ -355,7 +355,13 @@ def delete_receipt(receipt_id):
 @api_bp.route('/images/<path:filename>')
 def get_image(filename):
     """Serve receipt images"""
-    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+    try:
+        logger.info(f"Attempting to serve image: {filename}")
+        logger.info(f"Upload folder: {current_app.config['UPLOAD_FOLDER']}")
+        return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+    except Exception as e:
+        logger.error(f"Failed to serve image {filename}: {str(e)}")
+        return jsonify({'error': 'Image not found'}), 404
 
 @api_bp.route('/receipts/<int:receipt_id>/history', methods=['GET'])
 def get_receipt_history(receipt_id):
