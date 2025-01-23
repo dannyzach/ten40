@@ -1,4 +1,10 @@
-export type DocumentType = 'W-2' | '1099' | 'Expenses' | 'Donations';
+export enum DocumentType {
+    W2 = 'w2',
+    FORM_1099 = '1099',
+    EXPENSE = 'expenses',
+    DONATION = 'donations'
+}
+
 export type DocumentStatus = 'Pending' | 'Approved' | 'Rejected';
 
 interface BaseDocument {
@@ -10,20 +16,20 @@ interface BaseDocument {
 }
 
 export interface W2Document extends BaseDocument {
-    type: 'W-2';
+    type: DocumentType.W2;
     employer: string;
     wages: number;
     fedWithholding: number;
 }
 
 export interface Form1099Document extends BaseDocument {
-    type: '1099';
+    type: DocumentType.FORM_1099;
     payer: string;
     amount: number;
 }
 
 export interface ExpenseDocument extends BaseDocument {
-    type: 'Expenses';
+    type: DocumentType.EXPENSE;
     vendor: string;
     amount: number;
     date: string;
@@ -32,7 +38,7 @@ export interface ExpenseDocument extends BaseDocument {
 }
 
 export interface DonationDocument extends BaseDocument {
-    type: 'Donations';
+    type: DocumentType.DONATION;
     charityName: string;
     amount: number;
     donationType: string;

@@ -8,10 +8,10 @@ interface DocumentsTabsProps {
 }
 
 const TABS: { value: DocumentType; label: string }[] = [
-    { value: 'W-2', label: 'W-2' },
-    { value: '1099', label: '1099' },
-    { value: 'Expenses', label: 'Expenses' },
-    { value: 'Donations', label: 'Donations' },
+    { value: DocumentType.W2, label: 'W-2' },
+    { value: DocumentType.FORM_1099, label: '1099' },
+    { value: DocumentType.EXPENSE, label: 'Expenses' },
+    { value: DocumentType.DONATION, label: 'Donations' },
 ];
 
 export const DocumentsTabs: React.FC<DocumentsTabsProps> = ({ 
