@@ -1,34 +1,58 @@
 import React from 'react';
-import { Box, useMediaQuery, Theme } from '@mui/material';
-import { DialogWrapper } from './common/DialogWrapper';
+import { Box, IconButton, Dialog, DialogTitle } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 interface ImageViewerProps {
-    imagePath: string;
+    open: boolean;
+    imageUrl: string;
     onClose: () => void;
 }
 
-export const ImageViewer: React.FC<ImageViewerProps> = ({ imagePath, onClose }) => {
-    const isSmallScreen = useMediaQuery((theme: Theme) => theme.breakpoints.down('sm'));
+export const ImageViewer: React.FC<ImageViewerProps> = ({ open, imageUrl, onClose }) => {
+    if (!open) return null;
 
     return (
-        <DialogWrapper
-            title="Receipt Image"
-            open={true}
+        <Dialog 
+            open={open} 
             onClose={onClose}
+            maxWidth="lg"
+            fullWidth
         >
+            <DialogTitle sx={{ 
+                m: 0, 
+                p: 2,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+            }}>
+                Receipt Image
+                <IconButton
+                    aria-label="close"
+                    onClick={onClose}
+                    sx={{ color: 'text.secondary' }}
+                >
+                    <CloseIcon />
+                </IconButton>
+            </DialogTitle>
             <Box sx={{ bgcolor: 'black', p: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center',
+                    maxHeight: 'calc(90vh - 100px)',
+                    overflow: 'auto'
+                }}>
                     <img 
-                        src={`/api/images/${imagePath}`}
+                        src={imageUrl}
                         alt="Receipt"
                         style={{
                             maxWidth: '100%',
-                            maxHeight: isSmallScreen ? '90vh' : 'calc(90vh - 100px)',
+                            height: 'auto',
                             objectFit: 'contain'
                         }}
                     />
                 </Box>
             </Box>
-        </DialogWrapper>
+        </Dialog>
     );
 }; 

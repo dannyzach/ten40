@@ -8,10 +8,22 @@ const COLUMNS: Column<Form1099Document>[] = [
         id: 'nonEmpCompensation',
         label: 'Amount',
         minWidth: 100,
-        align: 'right',
-        format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+        align: 'left',
+        format: (value: string | number | null) => {
+            if (value == null) return '';
+            const numValue = typeof value === 'string' ? parseFloat(value) : value;
+            return numValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        }
     },
-    { id: 'status', label: 'Status', minWidth: 100, align: 'center' }
+    { 
+        id: 'status', 
+        label: 'Status', 
+        minWidth: 100, 
+        align: 'center',
+        editable: true,
+        editType: 'select',
+        options: ['Pending', 'Approved', 'Rejected']
+    }
 ];
 
 export const Form1099DocumentTable: React.FC<{ filters: any; onFilterChange: (f: any) => void }> = ({ 

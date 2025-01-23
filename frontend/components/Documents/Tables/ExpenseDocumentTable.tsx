@@ -2,6 +2,22 @@ import React from 'react';
 import { ExpenseDocument, DocumentType } from '@/types';
 import { BaseDocumentTable, Column } from './BaseDocumentTable';
 
+const EXPENSE_CATEGORIES = [
+    'Advertising',
+    'Car and Truck Expenses',
+    'Commissions and Fees',
+    'Contract Labor',
+    'Insurance',
+    'Legal and Professional Services',
+    'Office Expenses',
+    'Rent',
+    'Repairs and Maintenance',
+    'Supplies',
+    'Travel',
+    'Utilities',
+    'Other'
+];
+
 const COLUMNS: Column<ExpenseDocument>[] = [
     { 
         id: 'vendor',
@@ -14,13 +30,17 @@ const COLUMNS: Column<ExpenseDocument>[] = [
         id: 'amount',
         label: 'Amount',
         minWidth: 100,
-        align: 'right',
+        align: 'left',
         editable: true,
         editType: 'amount',
-        format: (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+        format: (value: string | number | null) => {
+            if (value == null) return '';
+            const numValue = typeof value === 'string' ? parseFloat(value) : value;
+            return numValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        }
     },
     { 
-        id: 'date' as keyof ExpenseDocument,
+        id: 'date',
         label: 'Date',
         minWidth: 100,
         editable: true,
@@ -39,12 +59,21 @@ const COLUMNS: Column<ExpenseDocument>[] = [
         options: ['Credit Card', 'Debit Card', 'Cash', 'Check', 'Wire Transfer', 'Other']
     },
     { 
-        id: 'category' as keyof ExpenseDocument,
-        label: 'Category',
+        id: 'category',
+        label: 'Expense Type',
         minWidth: 150,
         editable: true,
         editType: 'select',
-        options: [] // Will be populated from backend
+        options: EXPENSE_CATEGORIES
+    },
+    { 
+        id: 'status', 
+        label: 'Status', 
+        minWidth: 100, 
+        align: 'center',
+        editable: true,
+        editType: 'select',
+        options: ['Pending', 'Approved', 'Rejected']
     }
 ];
 

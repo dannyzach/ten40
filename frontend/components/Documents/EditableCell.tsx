@@ -9,6 +9,9 @@ import {
   SelectChangeEvent,
 } from '@mui/material';
 import { useClickAway } from '@/hooks/useClickAway';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 
 interface EditableCellProps {
   value: string | number | null;
@@ -18,202 +21,115 @@ interface EditableCellProps {
   disabled?: boolean;
   align?: 'left' | 'right' | 'center';
   format?: (value: any) => string;
+  onBlur?: () => void;
+  autoFocus?: boolean;
+  sx?: React.CSSProperties;
 }
 
 export const EditableCell: React.FC<EditableCellProps> = ({
   value,
   type,
+  options,
   onSave,
-  options = [],
-  disabled = false,
-  align = 'left',
-  format: formatValue,
+  onBlur,
+  autoFocus
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const cellRef = useRef<HTMLTableCellElement>(null);
-
-  const exitEditMode = () => {
-    console.log('EditableCell: Exiting edit mode:', { 
-      type, 
-      value: editValue,
-      isEditing,
-      timestamp: new Date().getTime()
-    });
-    setIsEditing(false);
-    setEditValue(value?.toString() ?? '');
-    setError(null);
-  };
-
-  const handleSave = async (event: MouseEvent | TouchEvent) => {
-    console.log('EditableCell: handleSave called:', { 
-      type, 
-      value: editValue,
-      isEditing,
-      eventType: event.type,
-      timestamp: new Date().getTime()
-    });
-    
-    if (!isEditing) return;
-
+  const [editValue, setEditValue] = useState(value);
+  
+  const handleSave = async () => {
     try {
-      if (type !== 'select') {
-        console.log('EditableCell: Saving non-select value:', { type, value: editValue });
-        await onSave(editValue);
-        console.log('EditableCell: Save successful:', { type, value: editValue });
-      }
-      setError(null);
-    } catch (err) {
-      console.error('EditableCell.handleSave: Error saving value:', {
-        error: err,
-        type,
-        value: editValue
-      });
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      return;
+      await onSave(String(editValue));
     } finally {
-      exitEditMode();
+      onBlur?.();
     }
   };
 
-  const listenClickAway = useClickAway(cellRef, (event) => {
-    console.log('EditableCell: Click away detected:', { 
-      type, 
-      value: editValue,
-      isEditing,
-      eventType: event.type,
-      target: (event.target as HTMLElement).tagName,
-      targetClass: (event.target as HTMLElement).className,
-      timestamp: new Date().getTime()
-    });
-    handleSave(event);
-  });
-
-  useEffect(() => {
-    setEditValue(value?.toString() ?? '');
-  }, [value]);
-
-  const handleClick = (event: React.MouseEvent) => {
-    console.log('EditableCell: Cell clicked:', {
-      type,
-      value,
-      isEditing,
-      timestamp: new Date().getTime()
-    });
-    
-    event.stopPropagation();
-    if (!disabled) {
-      console.log('EditableCell: Starting edit mode:', { type, value });
-      setIsEditing(true);
-      listenClickAway(true);
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      onBlur?.();
     }
   };
 
-  const handleTextChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    event.stopPropagation();
-    setEditValue(event.target.value);
+  const handleBlur = () => {
+    handleSave();
   };
 
-  const handleSelectChange = (
-    event: SelectChangeEvent<string>
-  ) => {
-    event.stopPropagation();
-    const newValue = event.target.value;
-    setEditValue(newValue);
-    
-    // Select-specific handling
-    onSave(newValue)
-        .then(() => {
-            setError(null);
-            exitEditMode();
-        })
-        .catch((err) => {
-            setError(err instanceof Error ? err.message : 'An error occurred');
-        });
-  };
-
-  if (!isEditing) {
+  if (type === 'date') {
     return (
-      <TableCell
-        ref={cellRef}
-        align={align}
-        onClick={handleClick}
-        sx={{ 
-          cursor: disabled ? 'default' : 'pointer',
-          padding: '16px',
-          '&:hover': {
-            backgroundColor: disabled ? 'transparent' : 'action.hover',
-          }
-        }}
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <DatePicker
+          value={editValue ? new Date(editValue) : null}
+          onChange={(newValue) => {
+            if (newValue) {
+              try {
+                // Ensure date is valid
+                const date = new Date(newValue);
+                if (isNaN(date.getTime())) {
+                  console.error('Invalid date');
+                  return;
+                }
+                
+                // Format as YYYY-MM-DD for API
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const formatted = `${year}-${month}-${day}`;
+                
+                setEditValue(formatted);
+                onSave(formatted);
+              } catch (error) {
+                console.error('Date parsing error:', error);
+              }
+            }
+          }}
+          format="MM/dd/yyyy"  // US format for display
+          slotProps={{
+            textField: {
+              variant: "standard",
+              size: "small",
+              fullWidth: true,
+              onBlur: handleBlur
+            }
+          }}
+        />
+      </LocalizationProvider>
+    );
+  }
+
+  if (type === 'select' && options) {
+    return (
+      <Select
+        value={editValue}
+        onChange={(e) => setEditValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+        autoFocus={autoFocus}
+        variant="standard"
+        size="small"
+        fullWidth
       >
-        {formatValue ? formatValue(value) : value}
-      </TableCell>
+        {options.map(option => (
+          <MenuItem key={option} value={option}>
+            {option}
+          </MenuItem>
+        ))}
+      </Select>
     );
   }
 
   return (
-    <TableCell 
-      ref={cellRef}
-      align={align} 
-      padding="none"
-      sx={{
-        position: 'relative',
-        '& .MuiInputBase-root': {
-          backgroundColor: 'background.paper',
-        }
-      }}
-    >
-      <Box sx={{ p: 1 }}>
-        {type === 'select' ? (
-          <Select
-            value={editValue}
-            onChange={handleSelectChange}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.preventDefault();
-                exitEditMode();
-              }
-            }}
-            size="small"
-            fullWidth
-            open={isEditing}
-            sx={{ backgroundColor: 'background.paper' }}
-          >
-            {options.map((option) => (
-              <MenuItem 
-                key={option} 
-                value={option}
-                onClick={(e) => {
-                  console.log('EditableCell: MenuItem clicked:', { 
-                    option, 
-                    type,
-                    currentValue: editValue,
-                    isEditing,
-                    timestamp: new Date().getTime()
-                  });
-                  e.stopPropagation();
-                }}
-              >
-                {option}
-              </MenuItem>
-            ))}
-          </Select>
-        ) : (
-          <TextField
-            value={editValue}
-            onChange={handleTextChange}
-            error={!!error}
-            helperText={error}
-            size="small"
-            fullWidth
-            type={type}
-            sx={{ backgroundColor: 'background.paper' }}
-          />
-        )}
-      </Box>
-    </TableCell>
+    <TextField
+      value={editValue}
+      onChange={(e) => setEditValue(e.target.value)}
+      onKeyDown={handleKeyDown}
+      onBlur={handleBlur}
+      autoFocus={autoFocus}
+      variant="standard"
+      size="small"
+      fullWidth
+      type={type === 'amount' ? 'number' : 'text'}
+    />
   );
 }; 

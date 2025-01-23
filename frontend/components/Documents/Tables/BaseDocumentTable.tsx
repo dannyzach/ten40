@@ -29,8 +29,6 @@ import { Document, DocumentType } from '@/types';
 import { documentsApi } from '@/lib/api/documents';
 import { EditableCell } from '../EditableCell';
 import { ImageViewer } from '@/components/ImageViewer';
-import { StatusChip } from '../StatusChip';
-import { formatCurrency, formatDate } from '@/utils/formatters';
 import { DocumentFilters } from '../DocumentFilters';
 
 // Define allowed value types for document fields
@@ -56,30 +54,30 @@ interface BaseDocumentTableProps<T extends Document> {
 
 const TableToolbar = ({ 
     type,
-    numSelected, 
-    onSelectAll, 
+    numSelected,
     onDelete,
     filters,
     onFilterChange,
-    availableOptions
+    onSelectAll,
+    selected,
 }: { 
     type: DocumentType;
     numSelected: number;
-    onSelectAll: (event: React.ChangeEvent<HTMLInputElement>) => void;
     onDelete: () => void;
     filters: any;
     onFilterChange: (filters: any) => void;
-    availableOptions: Record<string, string[]>;
+    onSelectAll: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    selected: number[];
 }) => (
     <Box sx={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        borderBottom: 1,
-        borderColor: 'divider',
-        bgcolor: numSelected > 0 ? 'action.selected' : 'background.paper',
         px: 2,
         py: 1,
+        borderBottom: 1,
+        borderColor: 'divider',
+        bgcolor: numSelected > 0 ? 'action.selected' : 'background.paper'
     }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Checkbox
@@ -87,7 +85,7 @@ const TableToolbar = ({
                 checked={numSelected > 0}
                 onChange={onSelectAll}
             />
-            {numSelected > 0 ? (
+            {numSelected > 0 && (
                 <>
                     <Typography>
                         {numSelected} selected
@@ -98,21 +96,14 @@ const TableToolbar = ({
                         </IconButton>
                     </Tooltip>
                 </>
-            ) : (
-                <Typography variant="h6" component="div">
-                    {type}
-                </Typography>
             )}
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <DocumentFilters
-                type={type}
-                filters={filters}
-                onFilterChange={onFilterChange}
-                availableOptions={availableOptions}
-                variant="toolbar"
-            />
-        </Box>
+        <DocumentFilters
+            type={type}
+            filters={filters}
+            onFilterChange={onFilterChange}
+            variant="toolbar"
+        />
     </Box>
 );
 
@@ -124,7 +115,7 @@ export function BaseDocumentTable<T extends Document>({
 }: BaseDocumentTableProps<T>) {
     const [documents, setDocuments] = useState<T[]>([]);
     const [loading, setLoading] = useState(true);
-    const [orderBy, setOrderBy] = useState<string>('');
+    const [orderBy, setOrderBy] = useState<keyof T | ''>('');
     const [order, setOrder] = useState<'asc' | 'desc'>('asc');
     const [selected, setSelected] = useState<number[]>([]);
     const [availableOptions, setAvailableOptions] = useState<Record<string, string[]>>({});
@@ -195,12 +186,16 @@ export function BaseDocumentTable<T extends Document>({
     // Update handler
     const handleUpdateField = async (documentId: number, field: keyof T, value: string): Promise<void> => {
         try {
-            await documentsApi.updateDocument(documentId, {
-                [field]: value
-            });
-            showSuccess('Document updated successfully');
+            console.log('[BaseDocumentTable] Starting update:', { documentId, field, value });
+            
+            // Create update object with proper typing
+            const updates = { [field]: value } as Partial<T>;
+            
+            await documentsApi.updateDocument(documentId, updates);
             await fetchDocuments();
+            showSuccess('Document updated successfully');
         } catch (error) {
+            console.error('[BaseDocumentTable] Update failed:', error);
             showError('Failed to update document');
             throw error;
         }
@@ -229,18 +224,32 @@ export function BaseDocumentTable<T extends Document>({
     const formatCellValue = (value: DocumentValue, column: Column<T>) => {
         if (value == null) return '';
         
-        if (column.editType === 'amount') {
-            return formatCurrency(Number(value));
-        }
-        
+        // Handle date formatting
         if (column.editType === 'date') {
-            return formatDate(String(value));
-        }
-        
-        if (column.id === 'status') {
-            return <StatusChip status={String(value)} />;
+            try {
+                const date = new Date(value);
+                if (isNaN(date.getTime())) return String(value); // Return original if invalid date
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+            } catch {
+                return String(value);
+            }
         }
 
+        // Handle amount formatting
+        if (column.editType === 'amount') {
+            const num = Number(value);
+            if (!isNaN(num)) {
+                return num.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+        }
+        
         return String(value);
     };
 
@@ -249,17 +258,37 @@ export function BaseDocumentTable<T extends Document>({
         if (!orderBy) return documents;
 
         return [...documents].sort((a, b) => {
-            const aValue = a[orderBy as keyof T];
-            const bValue = b[orderBy as keyof T];
+            const aValue = a[orderBy];
+            const bValue = b[orderBy];
 
-            if (order === 'desc') {
-                return bValue > aValue ? 1 : -1;
+            // Handle null/undefined values
+            if (aValue === null || aValue === undefined) return 1;
+            if (bValue === null || bValue === undefined) return -1;
+            if (aValue === bValue) return 0;
+
+            // Handle numeric values
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                return order === 'asc' ? aValue - bValue : bValue - aValue;
             }
-            return aValue > bValue ? 1 : -1;
+
+            // Handle date values
+            if (aValue instanceof Date && bValue instanceof Date) {
+                return order === 'asc' 
+                    ? aValue.getTime() - bValue.getTime()
+                    : bValue.getTime() - aValue.getTime();
+            }
+
+            // Handle string values
+            const aString = String(aValue).toLowerCase();
+            const bString = String(bValue).toLowerCase();
+            
+            return order === 'asc' 
+                ? aString.localeCompare(bString)
+                : bString.localeCompare(aString);
         });
     }, [documents, orderBy, order]);
 
-    const handleSort = (columnId: string) => {
+    const handleSort = (columnId: keyof T) => {
         const isAsc = orderBy === columnId && order === 'asc';
         setOrder(isAsc ? 'desc' : 'asc');
         setOrderBy(columnId);
@@ -272,17 +301,12 @@ export function BaseDocumentTable<T extends Document>({
                 <Tooltip title="View Image">
                     <IconButton
                         size="small"
-                        onClick={() => setSelectedImage(document.image_path || null)}
+                        onClick={() => setSelectedImage(document.image_path)}
                     >
                         <VisibilityIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
             )}
-            <Tooltip title="Edit">
-                <IconButton size="small">
-                    <EditIcon fontSize="small" />
-                </IconButton>
-            </Tooltip>
             <Tooltip title="Delete">
                 <IconButton
                     size="small"
@@ -311,7 +335,7 @@ export function BaseDocumentTable<T extends Document>({
                         await handleUpdateField(document.id, column.id, newValue);
                         setEditingCell(null);
                     }}
-                    onBlur={handleCellBlur}
+                    onBlur={() => setEditingCell(null)}
                     autoFocus
                 />
             );
@@ -319,13 +343,9 @@ export function BaseDocumentTable<T extends Document>({
 
         return (
             <Box
-                onClick={() => handleCellClick(document.id, column.id)}
+                onClick={() => column.editable && setEditingCell({ id: document.id, field: column.id })}
                 sx={{ 
-                    cursor: column.editable ? 'pointer' : 'default',
-                    '&:hover': column.editable ? {
-                        backgroundColor: 'action.hover',
-                        borderRadius: 1
-                    } : {}
+                    cursor: column.editable ? 'pointer' : 'default'
                 }}
             >
                 {formatCellValue(value as DocumentValue, column)}
@@ -347,22 +367,40 @@ export function BaseDocumentTable<T extends Document>({
                 <TableToolbar
                     type={type}
                     numSelected={selected.length}
-                    onSelectAll={handleSelectAll}
-                    onDelete={() => handleDelete(selected)}
+                    onDelete={() => setDeleteDialogOpen(true)}
                     filters={filters}
                     onFilterChange={onFilterChange}
-                    availableOptions={availableOptions}
+                    onSelectAll={handleSelectAll}
+                    selected={selected}
                 />
-                <Table stickyHeader>
+                <Table>
                     <TableHead>
                         <TableRow>
+                            <TableCell padding="checkbox">
+                                <Checkbox
+                                    checked={selected.length > 0}
+                                    indeterminate={selected.length > 0}
+                                    onChange={handleSelectAll}
+                                />
+                            </TableCell>
                             {columns.map((column) => (
                                 <TableCell
                                     key={String(column.id)}
                                     align={column.align}
                                     style={{ minWidth: column.minWidth }}
                                 >
-                                    {column.label}
+                                    <TableSortLabel
+                                        active={orderBy === column.id}
+                                        direction={orderBy === column.id ? order : 'asc'}
+                                        onClick={() => column.id !== 'actions' && handleSort(column.id as keyof T)}
+                                        sx={{
+                                            '& .MuiTableSortLabel-icon': {
+                                                opacity: orderBy === column.id ? 1 : 0.5
+                                            }
+                                        }}
+                                    >
+                                        {column.label}
+                                    </TableSortLabel>
                                 </TableCell>
                             ))}
                             <TableCell align="right">Actions</TableCell>
@@ -370,11 +408,7 @@ export function BaseDocumentTable<T extends Document>({
                     </TableHead>
                     <TableBody>
                         {sortedDocuments.map((document) => (
-                            <TableRow 
-                                hover 
-                                key={document.id}
-                                selected={selected.includes(document.id)}
-                            >
+                            <TableRow hover key={document.id}>
                                 <TableCell padding="checkbox">
                                     <Checkbox
                                         checked={selected.includes(document.id)}
@@ -385,10 +419,7 @@ export function BaseDocumentTable<T extends Document>({
                                     <TableCell 
                                         key={String(column.id)} 
                                         align={column.align}
-                                        sx={{ 
-                                            p: 1,
-                                            minWidth: column.minWidth 
-                                        }}
+                                        padding="normal"
                                     >
                                         {renderCell(document, column)}
                                     </TableCell>
@@ -402,14 +433,12 @@ export function BaseDocumentTable<T extends Document>({
                 </Table>
             </TableContainer>
 
-            {/* Image Viewer Dialog */}
             <ImageViewer
                 open={!!selectedImage}
                 imageUrl={selectedImage || ''}
                 onClose={() => setSelectedImage(null)}
             />
 
-            {/* Delete Confirmation Dialog */}
             <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
                 <DialogTitle>Confirm Delete</DialogTitle>
                 <DialogContent>
@@ -417,16 +446,12 @@ export function BaseDocumentTable<T extends Document>({
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-                    <Button 
-                        onClick={() => handleDelete(selected)}
-                        color="error"
-                    >
+                    <Button onClick={() => handleDelete(selected)} color="error">
                         Delete
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Notifications */}
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={6000}
