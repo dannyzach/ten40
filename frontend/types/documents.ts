@@ -7,6 +7,11 @@ export enum DocumentType {
 
 export type DocumentStatus = 'Pending' | 'Approved' | 'Rejected';
 
+export interface DateRange {
+    start?: string;
+    end?: string;
+}
+
 interface BaseDocument {
     id: number;
     type: DocumentType;

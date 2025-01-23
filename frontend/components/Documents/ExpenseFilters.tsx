@@ -45,14 +45,6 @@ interface ExpenseFiltersProps {
     onFilterChange: (filters: ExpenseFilter) => void;
 }
 
-interface FilterState {
-    vendor: string;
-    expenseType: string;
-    payment_method: string;
-    status: string;
-    date_range: DateRange;
-}
-
 export const ExpenseFilters: React.FC<ExpenseFiltersProps> = ({
     filters,
     onFilterChange,
