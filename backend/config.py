@@ -17,7 +17,7 @@ class Config:
             "Depletion",
             "Depreciation and Section 179 Expense Deduction",
             "Employee Benefit Programs",
-            "Insurance (Other Than Health)",
+            "Insurance",
             "Interest",
             "Legal and Professional Services",
             "Office Expenses",

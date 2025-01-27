@@ -2,20 +2,29 @@ import React from 'react';
 import { ExpenseDocument, DocumentType } from '@/types';
 import { BaseDocumentTable, Column } from './BaseDocumentTable';
 
-const EXPENSE_CATEGORIES = [
+// this is the list of expense categories from the backend. It shukd be read fromm backend but I left it here asi-is for now
+const EXPENSE_CATEGORIES = [ 
     'Advertising',
     'Car and Truck Expenses',
     'Commissions and Fees',
     'Contract Labor',
+    'Depletion',
+    'Depreciation and Section 179 Expense Deduction',
+    'Employee Benefit Programs',
     'Insurance',
+    'Interest',
     'Legal and Professional Services',
     'Office Expenses',
-    'Rent',
+    'Pension and Profit-Sharing Plans',
+    'Rent or Lease',
     'Repairs and Maintenance',
     'Supplies',
+    'Taxes and Licenses',
     'Travel',
+    'Meals',
     'Utilities',
-    'Other'
+    'Wages',
+    'Other Expenses'
 ];
 
 const PAYMENT_METHODS = [
