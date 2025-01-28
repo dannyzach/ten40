@@ -1,5 +1,6 @@
 import apiClient from './client';
-import { DocumentType } from '@/types';
+import { DocumentType, Receipt } from '@/types';
+import axios from 'axios';
 
 export const documentsApi = {
     getDocuments: () => {
@@ -32,4 +33,9 @@ export const documentsApi = {
     updateDocument: (id: number, updates: Record<string, any>): Promise<void> => {
         return apiClient.patch(`/receipts/${id}/update`, updates);
     },
+};
+
+export const fetchReceipt = async (id: string): Promise<Receipt> => {
+    const response = await apiClient.get(`/receipts/${id}`);
+    return response.data;
 }; 
