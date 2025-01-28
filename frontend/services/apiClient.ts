@@ -1,5 +1,11 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 
+// Add type for API error response
+interface ApiErrorResponse {
+    message: string;
+    [key: string]: any;  // Allow other fields while ensuring message exists
+}
+
 // Custom error class for API errors
 export class ApiError extends Error {
     constructor(
@@ -35,7 +41,7 @@ apiClient.interceptors.response.use(
     (response: AxiosResponse) => {
         return response;
     },
-    (error: AxiosError) => {
+    (error: AxiosError<ApiErrorResponse>) => {
         if (error.response) {
             throw new ApiError(
                 error.response.data?.message || 'An error occurred',

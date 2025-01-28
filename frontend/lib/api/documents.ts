@@ -11,6 +11,9 @@ export const documentsApi = {
                 return response;
             });
     },
+    getReceipt: (id: string) => {
+        return apiClient.get(`/receipts/${id}`);
+    },
     uploadDocument: (file: File, type: DocumentType) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -33,9 +36,4 @@ export const documentsApi = {
     updateDocument: (id: number, updates: Record<string, any>): Promise<void> => {
         return apiClient.patch(`/receipts/${id}/update`, updates);
     },
-};
-
-export const fetchReceipt = async (id: string): Promise<Receipt> => {
-    const response = await apiClient.get(`/receipts/${id}`);
-    return response.data;
 }; 

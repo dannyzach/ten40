@@ -241,7 +241,8 @@ export const ReceiptUploader: React.FC = () => {
 
             {selectedImage && (
                 <ImageViewer
-                    imagePath={selectedImage}
+                    open={Boolean(selectedImage)}
+                    imageUrl={selectedImage}
                     onClose={() => setSelectedImage(null)}
                 />
             )}

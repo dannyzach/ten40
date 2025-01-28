@@ -525,7 +525,8 @@ export const ReceiptList = () => {
 
             {selectedImage && (
                 <ImageViewer
-                    imagePath={selectedImage}
+                    open={Boolean(selectedImage)}
+                    imageUrl={selectedImage}
                     onClose={() => setSelectedImage(null)}
                 />
             )}
