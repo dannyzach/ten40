@@ -11,6 +11,9 @@ RUN npm install
 # Copy the rest of the application
 COPY . .
 
+# Create public directory if it doesn't exist
+RUN mkdir -p public
+
 # Build the application
 RUN npm run build
 
