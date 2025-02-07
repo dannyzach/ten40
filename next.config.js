@@ -10,11 +10,12 @@ const nextConfig = {
     ],
   } : {},
   async rewrites() {
-    // Keep local development working with localhost:3456
-    return process.env.NODE_ENV === 'production' ? [] : [
+    return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:3456/api/:path*',
+        destination: process.env.NODE_ENV === 'production'
+          ? 'https://backend-production-711f.up.railway.app/api/:path*'
+          : 'http://localhost:3456/api/:path*',
       }
     ];
   }
