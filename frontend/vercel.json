@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://backend-production-711f.up.railway.app/",
+    "NEXT_PUBLIC_API_TIMEOUT": "120000",
+    "NODE_OPTIONS": "--max-http-header-size=81920"
+  }
+} 

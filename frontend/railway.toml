@@ -1,9 +1,10 @@
 [build]
-builder = "nixpacks"
+builder = "DOCKERFILE"
+dockerfilePath = "./frontend/Dockerfile"
 buildCommand = "npm install && npm run build"
 
 [deploy]
-startCommand = "npm run build && npm start"
+startCommand = "npm start"
 healthcheckPath = "/"
 restartPolicyType = "on_failure"
 PORT = "3000"

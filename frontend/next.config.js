@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
+    swcMinify: true,
+    output: 'standalone',
     // Disable ESLint during build
     eslint: {
         ignoreDuringBuilds: true,
@@ -18,9 +20,27 @@ const nextConfig = {
     images: {
         domains: [
             'backend-production-711f.up.railway.app',
-            'localhost'
+            'localhost',
+            'your-backend-url.vercel.app'
         ],
-    }
+    },
+    env: {
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+        NEXT_PUBLIC_API_TIMEOUT: process.env.NEXT_PUBLIC_API_TIMEOUT,
+    },
+    async headers() {
+        return [
+            {
+                source: '/:path*',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: 'public, max-age=31536000, immutable',
+                    },
+                ],
+            },
+        ];
+    },
 };
 
 module.exports = nextConfig;

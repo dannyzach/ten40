@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography, Paper, Grid, Skeleton } from '@mui/material';
-import { fetchReceipt } from '../lib/api/documents';
+import { documentsApi } from '@/lib/api/documents';
 import ErrorMessage from './common/ErrorMessage';
 import { Receipt } from '../types';
 
@@ -19,8 +19,8 @@ export default function ReceiptDetail({ receiptId }: ReceiptDetailProps) {
       
       try {
         setLoading(true);
-        const data = await fetchReceipt(receiptId.toString());
-        setReceipt(data);
+        const response = await documentsApi.getReceipt(receiptId.toString());
+        setReceipt(response.data);
       } catch (err) {
         setError('Failed to load receipt details');
         console.error('Error loading receipt:', err);

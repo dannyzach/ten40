@@ -1,5 +1,6 @@
 import apiClient from './client';
-import { DocumentType } from '@/types';
+import { DocumentType, Receipt } from '@/types';
+import axios from 'axios';
 
 export const documentsApi = {
     getDocuments: () => {
@@ -9,6 +10,9 @@ export const documentsApi = {
                 console.log('API: Received response:', response.data);
                 return response;
             });
+    },
+    getReceipt: (id: string) => {
+        return apiClient.get(`/receipts/${id}`);
     },
     uploadDocument: (file: File, type: DocumentType) => {
         const formData = new FormData();

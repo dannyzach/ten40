@@ -1,28 +1,26 @@
 import { useCallback } from 'react';
 import { documentsApi } from '../lib/api/documents';
-import { Document, DocumentType, ExpenseDocument } from '@/types';
+import { DocumentType, Receipt } from '@/types';
 
 interface DocumentManagement {
-  uploadReceipt: (file: File) => Promise<ExpenseDocument>;
-  getReceipts: () => Promise<ExpenseDocument[]>;
-  deleteReceipt: (id: string) => Promise<void>;
-  fetchReceipt: (id: string | string[]) => Promise<ExpenseDocument>;
+  uploadReceipt: (file: File) => Promise<Receipt>;
+  getReceipts: () => Promise<Receipt[]>;
+  deleteReceipt: (id: number) => Promise<void>;
+  fetchReceipt: (id: string | string[]) => Promise<Receipt>;
 }
 
 export const useDocumentManagement = (): DocumentManagement => {
   const uploadReceipt = useCallback(async (file: File) => {
     const response = await documentsApi.uploadDocument(file, 'Expenses' as DocumentType);
-    return response.data as ExpenseDocument;
+    return response.data as Receipt;
   }, []);
 
   const getReceipts = useCallback(async () => {
     const response = await documentsApi.getDocuments();
-    return response.data.filter(
-      (doc): doc is ExpenseDocument => doc.type === 'Expenses'
-    );
+    return response.data as Receipt[];
   }, []);
 
-  const deleteReceipt = useCallback(async (id: string) => {
+  const deleteReceipt = useCallback(async (id: number) => {
     try {
       await documentsApi.deleteDocument(id);
     } catch (error) {
@@ -34,11 +32,11 @@ export const useDocumentManagement = (): DocumentManagement => {
   const fetchReceipt = useCallback(async (id: string | string[]) => {
     const receiptId = Array.isArray(id) ? id[0] : id;
     const response = await documentsApi.getDocuments();
-    const receipt = response.data.find(doc => doc.id === receiptId);
-    if (!receipt || receipt.type !== 'Expenses') {
+    const receipt = response.data.find((doc: Receipt) => doc.id === Number(receiptId));
+    if (!receipt) {
       throw new Error('Receipt not found');
     }
-    return receipt as ExpenseDocument;
+    return receipt as Receipt;
   }, []);
 
   return {

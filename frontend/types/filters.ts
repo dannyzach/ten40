@@ -10,7 +10,7 @@ export interface BaseFilter {
 }
 
 export interface W2Filter extends BaseFilter {
-  type: 'W-2';
+  type: DocumentType.W2;
   employer?: string[];
   wageRange?: {
     min: number;
@@ -19,7 +19,7 @@ export interface W2Filter extends BaseFilter {
 }
 
 export interface Form1099Filter extends BaseFilter {
-  type: '1099';
+  type: DocumentType.FORM_1099;
   employer?: string[];
   amountRange?: {
     min: number;
@@ -28,7 +28,7 @@ export interface Form1099Filter extends BaseFilter {
 }
 
 export interface ExpenseFilter extends BaseFilter {
-  type: 'Expenses';
+  type: DocumentType.EXPENSE;
   vendor?: string[];
   amountRange?: {
     min: number;
@@ -39,7 +39,7 @@ export interface ExpenseFilter extends BaseFilter {
 }
 
 export interface DonationFilter extends BaseFilter {
-  type: 'Donations';
+  type: DocumentType.DONATION;
   charityName?: string[];
   amountRange?: {
     min: number;
